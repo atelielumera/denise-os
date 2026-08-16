@@ -131,10 +131,18 @@ function Rotina(){
     </Card>
   </div>)}
 function Agenda(){
+  const GOOGLE_CLIENT_ID='386247436984-g828bjjges33iherifnlbk18cfe0u1mj.apps.googleusercontent.com'
+  const GOOGLE_SCOPE='https://www.googleapis.com/auth/calendar.events'
   const [eventos,setEventos]=React.useState<any[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_agenda')||'[]')}catch{return []}})
   const [novo,setNovo]=React.useState({data:'',hora:'',nome:'',cor:'#38bdf8'})
   const [schedules,setSchedules]=React.useState<any>({})
   const [saved,setSaved]=React.useState(false)
+  const [gToken,setGToken]=React.useState('')
+  const [gEventos,setGEventos]=React.useState<any[]>([])
+  const [gLoading,setGLoading]=React.useState(false)
+  const [gErro,setGErro]=React.useState('')
+  const [view,setView]=React.useState<'dia'|'semana'|'mes'|'ano'>('mes')
+  const [cursor,setCursor]=React.useState(new Date())
 
   React.useEffect(()=>{
     supabase.from('tirzepatida_schedule').select('*').then(({data}:any)=>{
@@ -144,10 +152,57 @@ function Agenda(){
     })
   },[])
 
+  function buscarEventosGoogle(token:string){
+    setGLoading(true);setGErro('')
+    const hoje=new Date()
+    const timeMin=new Date(hoje.getFullYear(),hoje.getMonth()-2,1).toISOString()
+    const timeMax=new Date(hoje.getFullYear(),hoje.getMonth()+10,1).toISOString()
+    fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&maxResults=250&singleEvents=true&orderBy=startTime`,{headers:{Authorization:`Bearer ${token}`}})
+      .then(r=>r.json())
+      .then(data=>{setGEventos(data.items||[]);setGLoading(false)})
+      .catch(()=>{setGErro('Erro ao buscar eventos do Google.');setGLoading(false)})
+  }
+
+  function conectarGoogle(){
+    const g=(window as any).google
+    if(!g||!g.accounts||!g.accounts.oauth2){setGErro('Google ainda carregando, tenta de novo em alguns segundos.');return}
+    const tokenClient=g.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_CLIENT_ID,
+      scope:GOOGLE_SCOPE,
+      callback:(resp:any)=>{
+        if(resp&&resp.access_token){setGToken(resp.access_token);buscarEventosGoogle(resp.access_token)}
+        else{setGErro('Nao foi possivel conectar ao Google.')}
+      }
+    })
+    tokenClient.requestAccessToken()
+  }
+
+  function addHora(hhmm:string){
+    const partes=hhmm.split(':').map(Number)
+    const hh=partes[0]||0,mm=partes[1]||0
+    const d=new Date();d.setHours(hh+1,mm,0,0)
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  }
+
   function addEvento(){
     if(!novo.data||!novo.nome)return
     const n=[...eventos,{...novo}].sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))
     setEventos(n);localStorage.setItem('dos_agenda',JSON.stringify(n))
+    if(gToken){
+      const body:any={summary:novo.nome}
+      if(novo.hora){
+        body.start={dateTime:`${novo.data}T${novo.hora}:00`,timeZone:'America/Sao_Paulo'}
+        body.end={dateTime:`${novo.data}T${addHora(novo.hora)}:00`,timeZone:'America/Sao_Paulo'}
+      }else{
+        body.start={date:novo.data}
+        body.end={date:novo.data}
+      }
+      fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+        method:'POST',
+        headers:{Authorization:`Bearer ${gToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify(body)
+      }).then(()=>buscarEventosGoogle(gToken)).catch(()=>{})
+    }
     setNovo({data:'',hora:'',nome:'',cor:'#38bdf8'});setSaved(true)
   }
   function delEvento(idx:number){
@@ -155,36 +210,153 @@ function Agenda(){
     setEventos(n);localStorage.setItem('dos_agenda',JSON.stringify(n))
   }
 
-  const hojeISO=new Date().toISOString().slice(0,10)
-  const hojeEventos=eventos.filter((e:any)=>e.data===hojeISO).sort((a:any,b:any)=>a.hora.localeCompare(b.hora))
-  const futurosEventos=eventos.filter((e:any)=>e.data>hojeISO).sort((a:any,b:any)=>a.data.localeCompare(b.data))
-  function fmtData(iso:string){if(!iso)return '';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
+  function pad2(n:number){return String(n).padStart(2,'0')}
+  function toISO(d:Date){return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`}
+  function startOfWeek(d:Date){
+    const dt=new Date(d);const day=dt.getDay();const diff=(day===0?-6:1-day)
+    dt.setDate(dt.getDate()+diff);dt.setHours(0,0,0,0);return dt
+  }
+  function nav(delta:number){
+    const d=new Date(cursor)
+    if(view==='dia')d.setDate(d.getDate()+delta)
+    else if(view==='semana')d.setDate(d.getDate()+delta*7)
+    else if(view==='mes')d.setMonth(d.getMonth()+delta)
+    else d.setFullYear(d.getFullYear()+delta)
+    setCursor(d)
+  }
+  function irHoje(){setCursor(new Date())}
+
+  const localEvs=eventos.map((e:any)=>({date:e.data,time:e.hora,title:e.nome,color:e.cor,source:'local'}))
+  const googleEvs=gEventos.map((ev:any)=>{
+    const inicio=ev.start?.dateTime||ev.start?.date
+    const isDate=!!ev.start?.date
+    const d=new Date(inicio)
+    return {date:toISO(d),time:isDate?'':`${pad2(d.getHours())}:${pad2(d.getMinutes())}`,title:ev.summary||'(Sem titulo)',color:'#4285F4',source:'google'}
+  })
+  const tirzoEvs:any[]=[]
+  if(schedules.denise?.next_application_date)tirzoEvs.push({date:schedules.denise.next_application_date,time:'',title:'Tirzepatida - Denise',color:C.acc2,source:'tirzo'})
+  if(schedules.flavio?.next_application_date)tirzoEvs.push({date:schedules.flavio.next_application_date,time:'',title:'Tirzepatida - Flavio',color:C.water,source:'tirzo'})
+  const allEvs=[...localEvs,...googleEvs,...tirzoEvs]
+  const evsByDate:Record<string,any[]>={}
+  allEvs.forEach((e:any)=>{(evsByDate[e.date]=evsByDate[e.date]||[]).push(e)})
+  Object.values(evsByDate).forEach((arr:any)=>arr.sort((a:any,b:any)=>(a.time||'').localeCompare(b.time||'')))
+
+  function fmtDiaLong(d:Date){return d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
+  function fmtMesAno(d:Date){const s2=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});return s2.charAt(0).toUpperCase()+s2.slice(1)}
+  function fmtDiaCurto(d:Date){return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
+
+  function excluirEventoUnificado(ev:any){
+    if(ev.source!=='local')return
+    const idx=eventos.findIndex((e:any)=>e.data===ev.date&&e.hora===ev.time&&e.nome===ev.title)
+    if(idx>=0)delEvento(idx)
+  }
+
+  function renderDia(){
+    const diaISO=toISO(cursor)
+    const evs=evsByDate[diaISO]||[]
+    return(<Card title={fmtDiaLong(cursor)}>
+      {evs.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum evento neste dia.</div>}
+      {evs.map((e:any,i:number)=>(<div key={i} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.line}`,alignItems:'center'}}>
+        <span style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.time}</span>
+        <span style={{width:4,height:20,borderRadius:2,background:e.color,flexShrink:0}}/>
+        <span style={{fontSize:13.5,flex:1}}>{e.title}</span>
+        {e.source==='local'&&<button onClick={()=>excluirEventoUnificado(e)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>}
+      </div>))}
+    </Card>)
+  }
+
+  function renderSemana(){
+    const inicio=startOfWeek(cursor)
+    const dias=[...Array(7)].map((_,i)=>{const d=new Date(inicio);d.setDate(d.getDate()+i);return d})
+    return(<Card title={`Semana de ${fmtDiaCurto(dias[0])} a ${fmtDiaCurto(dias[6])}`}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:8}}>
+        {dias.map((d,i)=>{
+          const iso=toISO(d)
+          const evs=evsByDate[iso]||[]
+          const hoje=iso===toISO(new Date())
+          return(<div key={i} onClick={()=>{setCursor(d);setView('dia')}} style={{background:hoje?'rgba(139,92,246,.12)':C.s2,border:`1px solid ${hoje?C.acc2:C.line}`,borderRadius:10,padding:8,minHeight:120,cursor:'pointer'}}>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginBottom:4}}>{d.toLocaleDateString('pt-BR',{weekday:'short'})}</div>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>{d.getDate()}</div>
+            {evs.slice(0,4).map((e:any,j:number)=>(<div key={j} style={{fontSize:10.5,padding:'2px 4px',borderRadius:4,background:`${e.color}22`,color:e.color,marginBottom:2,overflow:'hidden',whiteSpace:'nowrap' as const,textOverflow:'ellipsis'}}>{e.title}</div>))}
+            {evs.length>4&&<div style={{fontSize:10,color:'rgba(255,255,255,.4)'}}>+{evs.length-4}</div>}
+          </div>)
+        })}
+      </div>
+    </Card>)
+  }
+
+  function renderMes(){
+    const mesInicio=new Date(cursor.getFullYear(),cursor.getMonth(),1)
+    const gridStart=startOfWeek(mesInicio)
+    const cells=[...Array(42)].map((_,i)=>{const d=new Date(gridStart);d.setDate(d.getDate()+i);return d})
+    const hojeISO=toISO(new Date())
+    return(<Card title={fmtMesAno(cursor)}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:6}}>
+        {['Seg','Ter','Qua','Qui','Sex','Sab','Dom'].map(d=>(<div key={d} style={{fontSize:11,color:'rgba(255,255,255,.4)',textAlign:'center' as const,padding:'4px 0'}}>{d}</div>))}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
+        {cells.map((d,i)=>{
+          const iso=toISO(d)
+          const evs=evsByDate[iso]||[]
+          const foraDoMes=d.getMonth()!==cursor.getMonth()
+          const hoje=iso===hojeISO
+          return(<div key={i} onClick={()=>{setCursor(d);setView('dia')}} style={{background:hoje?'rgba(139,92,246,.12)':C.s2,border:`1px solid ${hoje?C.acc2:C.line}`,borderRadius:8,padding:5,minHeight:68,opacity:foraDoMes?0.35:1,cursor:'pointer'}}>
+            <div style={{fontSize:11.5,fontWeight:hoje?800:600,marginBottom:3}}>{d.getDate()}</div>
+            {evs.slice(0,2).map((e:any,j:number)=>(<div key={j} style={{fontSize:9.5,padding:'1px 3px',borderRadius:3,background:`${e.color}22`,color:e.color,marginBottom:1,overflow:'hidden',whiteSpace:'nowrap' as const,textOverflow:'ellipsis'}}>{e.title}</div>))}
+            {evs.length>2&&<div style={{fontSize:9,color:'rgba(255,255,255,.4)'}}>+{evs.length-2}</div>}
+          </div>)
+        })}
+      </div>
+    </Card>)
+  }
+
+  function renderAno(){
+    const meses=[...Array(12)].map((_,i)=>new Date(cursor.getFullYear(),i,1))
+    return(<Card title={String(cursor.getFullYear())}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+        {meses.map((m,i)=>{
+          const count=allEvs.filter((e:any)=>{const ed=new Date(e.date+'T12:00:00');return ed.getFullYear()===m.getFullYear()&&ed.getMonth()===m.getMonth()}).length
+          const nomeMes=m.toLocaleDateString('pt-BR',{month:'long'})
+          return(<div key={i} onClick={()=>{setCursor(m);setView('mes')}} style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:12,cursor:'pointer'}}>
+            <div style={{fontSize:13,fontWeight:700,marginBottom:4,textTransform:'capitalize' as const}}>{nomeMes}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{count} evento{count===1?'':'s'}</div>
+          </div>)
+        })}
+      </div>
+    </Card>)
+  }
 
   return(<div style={{padding:'24px 28px'}}>
-    <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Agenda</h1>
-    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p>
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
-      <Card title="Timeline de hoje">
-        {hojeEventos.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum evento para hoje.</div>}
-        {hojeEventos.map((e:any,i:number)=>(<div key={i} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.line}`,alignItems:'center'}}>
-          <span style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.hora}</span>
-          <span style={{width:4,height:20,borderRadius:2,background:e.cor,flexShrink:0}}/>
-          <span style={{fontSize:13.5,flex:1}}>{e.nome}</span>
-          <button onClick={()=>delEvento(eventos.indexOf(e))} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>
-        </div>))}
-      </Card>
-      <Card title="Proximos eventos">
-        {schedules.denise&&<div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700,color:C.acc2}}>Tirzepatida - Denise</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{schedules.denise.next_application_date?fmtData(schedules.denise.next_application_date):'-'}</div></div>}
-        {schedules.flavio&&<div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700,color:C.water}}>Tirzepatida - Flavio</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{schedules.flavio.next_application_date?fmtData(schedules.flavio.next_application_date):'-'}</div></div>}
-        {futurosEventos.length===0&&!schedules.denise&&!schedules.flavio&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum evento futuro.</div>}
-        {futurosEventos.map((e:any,i:number)=>(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
-          <div><div style={{fontWeight:700}}>{e.nome}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{fmtData(e.data)}{e.hora?` - ${e.hora}`:''}</div></div>
-          <button onClick={()=>delEvento(eventos.indexOf(e))} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>
-        </div>))}
-      </Card>
+    <div style={{display:'flex',justifyContent:'space-between' as const,alignItems:'flex-start',marginBottom:16,flexWrap:'wrap' as const,gap:10}}>
+      <div>
+        <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Agenda</h1>
+        <p style={{color:'rgba(255,255,255,.4)',fontSize:13}}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p>
+      </div>
+      {!gToken?
+        <button onClick={conectarGoogle} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'9px 14px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>Conectar Google Calendar</button>
+        :<div style={{fontSize:12,color:C.ok,fontWeight:700,padding:'9px 14px'}}>Google Calendar conectado</div>
+      }
+    </div>
+    {gErro&&<div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:10,padding:'8px 12px',fontSize:12.5,color:C.danger,marginBottom:12}}>{gErro}</div>}
+    <div style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',marginBottom:16,flexWrap:'wrap' as const,gap:10}}>
+      <div style={{display:'flex',gap:6}}>
+        {(['dia','semana','mes','ano'] as const).map(v=>(<button key={v} onClick={()=>setView(v)} style={{background:view===v?`linear-gradient(135deg,${C.acc},#7c3aed)`:C.s2,border:`1px solid ${view===v?'transparent':C.line}`,color:'#fff',borderRadius:9,padding:'8px 16px',fontSize:12.5,fontWeight:700,cursor:'pointer',textTransform:'capitalize' as const}}>{v}</button>))}
+      </div>
+      <div style={{display:'flex',gap:6,alignItems:'center'}}>
+        <button onClick={()=>nav(-1)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:8,padding:'7px 12px',fontSize:13,cursor:'pointer'}}>&larr;</button>
+        <button onClick={irHoje} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:8,padding:'7px 12px',fontSize:12.5,cursor:'pointer'}}>Hoje</button>
+        <button onClick={()=>nav(1)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:8,padding:'7px 12px',fontSize:13,cursor:'pointer'}}>&rarr;</button>
+      </div>
+    </div>
+    {gLoading&&<div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:10}}>Carregando eventos do Google...</div>}
+    <div style={{marginBottom:16}}>
+      {view==='dia'&&renderDia()}
+      {view==='semana'&&renderSemana()}
+      {view==='mes'&&renderMes()}
+      {view==='ano'&&renderAno()}
     </div>
     <Card title="Adicionar evento">
-      {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
+      {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!{gToken?' (e enviado ao Google Calendar)':''}</div>}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr 1fr',gap:8,marginBottom:10}}>
         <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novo.data} onChange={e=>setNovo(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
         <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Hora</label><input type="time" value={novo.hora} onChange={e=>setNovo(p=>({...p,hora:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
