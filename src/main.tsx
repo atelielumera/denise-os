@@ -10,25 +10,17 @@ const C={bg:'#0a0a0f',s:'#16161f',s2:'#1c1c28',s3:'#22222f',line:'rgba(255,255,2
 const navItems=[['/', 'Home','🏠'],['/rotina','Minha Rotina','📋'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Exercícios','💪'],['/tirzepatida','Tirzepatida','💉'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/insights','Insights','💡'],['/relatorios','Relatórios','📊'],['/assistente','Assistente IA','✨'],['/config','Configurações','⚙️']]
 
 function AuthScreen(){
-  const [mode,setMode]=React.useState<'login'|'signup'>('login')
   const [email,setEmail]=React.useState('')
   const [password,setPassword]=React.useState('')
   const [error,setError]=React.useState('')
-  const [info,setInfo]=React.useState('')
   const [loading,setLoading]=React.useState(false)
 
   async function submit(e:React.FormEvent){
     e.preventDefault()
-    setError('');setInfo('');setLoading(true)
+    setError('');setLoading(true)
     try{
-      if(mode==='login'){
-        const {error}=await supabase.auth.signInWithPassword({email,password})
-        if(error) throw error
-      }else{
-        const {error}=await supabase.auth.signUp({email,password})
-        if(error) throw error
-        setInfo('Conta criada! Se a confirmação por e-mail estiver ativa, confirme antes de entrar.')
-      }
+      const {error}=await supabase.auth.signInWithPassword({email,password})
+      if(error) throw error
     }catch(err:any){
       setError(err?.message||'Erro ao autenticar.')
     }
@@ -43,19 +35,15 @@ function AuthScreen(){
         <div style={{fontSize:12,color:'#7d7d90'}}>Seu sistema operacional de vida</div>
       </div>
       <form onSubmit={submit} style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:24}}>
-        <h2 style={{fontSize:16,fontWeight:700,margin:'0 0 4px'}}>{mode==='login'?'Entrar':'Criar conta'}</h2>
-        <p style={{fontSize:12,color:'rgba(255,255,255,.4)',margin:'0 0 18px'}}>{mode==='login'?'Acesse o seu painel pessoal.':'Comece a organizar sua rotina.'}</p>
+        <h2 style={{fontSize:16,fontWeight:700,margin:'0 0 4px'}}>Entrar</h2>
+        <p style={{fontSize:12,color:'rgba(255,255,255,.4)',margin:'0 0 18px'}}>Acesse o seu painel pessoal.</p>
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>E-mail</label>
         <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/>
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Senha</label>
         <input type="password" required minLength={6} value={password} onChange={e=>setPassword(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:16}}/>
         {error&&<div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:10,padding:'8px 12px',fontSize:12.5,color:C.danger,marginBottom:12}}>{error}</div>}
-        {info&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'8px 12px',fontSize:12.5,color:C.ok,marginBottom:12}}>{info}</div>}
-        <button type="submit" disabled={loading} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>{loading?'Aguarde…':(mode==='login'?'Entrar':'Criar conta')}</button>
+        <button type="submit" disabled={loading} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>{loading?'Aguarde...':'Entrar'}</button>
       </form>
-      <p style={{textAlign:'center' as const,fontSize:12.5,color:'rgba(255,255,255,.5)',marginTop:16}}>
-        {mode==='login'?<>Ainda não tem conta? <a onClick={()=>setMode('signup')} style={{color:C.acc2,cursor:'pointer'}}>Criar conta</a></>:<>Já tem conta? <a onClick={()=>setMode('login')} style={{color:C.acc2,cursor:'pointer'}}>Entrar</a></>}
-      </p>
     </div>
   </div>)
 }
@@ -142,7 +130,71 @@ function Rotina(){
       </div>))}</>
     </Card>
   </div>)}
-function Agenda(){return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Agenda</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}><Card title="Timeline de hoje">{[{t:'05:30',n:'Devocional',c:'#a78bfa'},{t:'07:00',n:'Levar Domi e Derick',c:'#38bdf8'},{t:'07:30',n:'Calistenia',c:'#34d399'},{t:'12:50',n:'Buscar Domi',c:'#38bdf8'},{t:'17:00',n:'Buscar Derick',c:'#38bdf8'},{t:'20:00',n:'Aula (até 14/08)',c:'#fbbf24'},{t:'22:00',n:'Leitura',c:'#f472b6'}].map(e=>(<div key={e.t} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><span style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.t}</span><span style={{width:4,borderRadius:2,background:e.c,flexShrink:0}}/><span style={{fontSize:13.5}}>{e.n}</span></div>))}</Card><Card title="Próximos eventos"><div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700}}>Célula</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Quarta-feira · 20:00 · recorrente</div></div><div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700}}>Aula</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Sexta-feira · 20:00 · até 14/08/2026</div></div><div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700,color:C.acc2}}>Tirzepatida · Denise</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>02/08/2026</div></div><div style={{padding:'10px 0'}}><div style={{fontWeight:700,color:C.water}}>Tirzepatida · Flávio</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>31/07/2026</div></div></Card></div></div>)}
+function Agenda(){
+  const [eventos,setEventos]=React.useState<any[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_agenda')||'[]')}catch{return []}})
+  const [novo,setNovo]=React.useState({data:'',hora:'',nome:'',cor:'#38bdf8'})
+  const [schedules,setSchedules]=React.useState<any>({})
+  const [saved,setSaved]=React.useState(false)
+
+  React.useEffect(()=>{
+    supabase.from('tirzepatida_schedule').select('*').then(({data}:any)=>{
+      const m:any={}
+      ;(data||[]).forEach((r:any)=>{m[r.person]=r})
+      setSchedules(m)
+    })
+  },[])
+
+  function addEvento(){
+    if(!novo.data||!novo.nome)return
+    const n=[...eventos,{...novo}].sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))
+    setEventos(n);localStorage.setItem('dos_agenda',JSON.stringify(n))
+    setNovo({data:'',hora:'',nome:'',cor:'#38bdf8'});setSaved(true)
+  }
+  function delEvento(idx:number){
+    const n=eventos.filter((_e:any,i:number)=>i!==idx)
+    setEventos(n);localStorage.setItem('dos_agenda',JSON.stringify(n))
+  }
+
+  const hojeISO=new Date().toISOString().slice(0,10)
+  const hojeEventos=eventos.filter((e:any)=>e.data===hojeISO).sort((a:any,b:any)=>a.hora.localeCompare(b.hora))
+  const futurosEventos=eventos.filter((e:any)=>e.data>hojeISO).sort((a:any,b:any)=>a.data.localeCompare(b.data))
+  function fmtData(iso:string){if(!iso)return '';const d=new Date(iso+'T12:00:00');return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
+
+  return(<div style={{padding:'24px 28px'}}>
+    <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Agenda</h1>
+    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}</p>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+      <Card title="Timeline de hoje">
+        {hojeEventos.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum evento para hoje.</div>}
+        {hojeEventos.map((e:any,i:number)=>(<div key={i} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.line}`,alignItems:'center'}}>
+          <span style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.hora}</span>
+          <span style={{width:4,height:20,borderRadius:2,background:e.cor,flexShrink:0}}/>
+          <span style={{fontSize:13.5,flex:1}}>{e.nome}</span>
+          <button onClick={()=>delEvento(eventos.indexOf(e))} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>
+        </div>))}
+      </Card>
+      <Card title="Proximos eventos">
+        {schedules.denise&&<div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700,color:C.acc2}}>Tirzepatida - Denise</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{schedules.denise.next_application_date?fmtData(schedules.denise.next_application_date):'-'}</div></div>}
+        {schedules.flavio&&<div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontWeight:700,color:C.water}}>Tirzepatida - Flavio</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{schedules.flavio.next_application_date?fmtData(schedules.flavio.next_application_date):'-'}</div></div>}
+        {futurosEventos.length===0&&!schedules.denise&&!schedules.flavio&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum evento futuro.</div>}
+        {futurosEventos.map((e:any,i:number)=>(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
+          <div><div style={{fontWeight:700}}>{e.nome}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{fmtData(e.data)}{e.hora?` - ${e.hora}`:''}</div></div>
+          <button onClick={()=>delEvento(eventos.indexOf(e))} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>
+        </div>))}
+      </Card>
+    </div>
+    <Card title="Adicionar evento">
+      {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr 1fr',gap:8,marginBottom:10}}>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novo.data} onChange={e=>setNovo(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Hora</label><input type="time" value={novo.hora} onChange={e=>setNovo(p=>({...p,hora:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Evento</label><input value={novo.nome} onChange={e=>setNovo(p=>({...p,nome:e.target.value}))} placeholder="Ex: Celula" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Cor</label><input type="color" value={novo.cor} onChange={e=>setNovo(p=>({...p,cor:e.target.value}))} style={{width:'100%',height:36,background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:2,cursor:'pointer'}}/></div>
+      </div>
+      <button onClick={addEvento} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Adicionar evento</button>
+    </Card>
+  </div>)
+}
 function Espiritual(){const [ref,setRef]=React.useState('');const [reflex,setReflex]=React.useState('');const [grat,setGrat]=React.useState('');const [apren,setApren]=React.useState('');const [saved,setSaved]=React.useState(false);return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Espiritual</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Devocional diário · 05:30 · 🔥 Sequência de 12 dias</p><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}><Card title="Devocional de hoje">{saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Devocional salvo!</div>}<label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Referência bíblica</label><input value={ref} onChange={e=>setRef(e.target.value)} placeholder="Ex: Salmos 143:10" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Reflexão</label><textarea value={reflex} onChange={e=>setReflex(e.target.value)} placeholder="O que Deus falou com você hoje?" rows={3} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12,resize:'none' as const}}/><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Gratidão</label><input value={grat} onChange={e=>setGrat(e.target.value)} placeholder="Sou grata por…" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Aprendizado</label><input value={apren} onChange={e=>setApren(e.target.value)} placeholder="O que levo pro dia" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/><button onClick={()=>setSaved(true)} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>✓ Salvar devocional</button></Card><div><Card title="Plano de leitura"><div style={{display:'flex',justifyContent:'space-between',fontSize:12.5,color:'rgba(255,255,255,.6)'}}><span>Bíblia em 1 ano</span><span>210 / 365</span></div><div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden',marginTop:8,marginBottom:14}}><div style={{height:'100%',width:'57%',borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div><div style={{fontSize:13,color:C.warn}}>🔥 Sequência: 12 dias</div></Card><div style={{marginTop:16}}><Card title="Versículo do dia"><p style={{fontSize:13,fontStyle:'italic',lineHeight:1.6}}>"Ensina-me a fazer a tua vontade, pois tu és o meu Deus."</p><span style={{fontSize:12,color:C.acc2}}>Salmos 143:10</span></Card></div></div></div></div>)}
 function Saude(){
   type SReg={data:string,peso:number,imc:number,gordura:number,humor:number,energia:number,intestino:string,sint:string}
@@ -175,6 +227,19 @@ function Saude(){
   const [novaConsulta,setNovaConsulta]=React.useState({tipo:'',data:'',obs:'',proximo:''})
   const [novaCrianca,setNovaCrianca]=React.useState({peso:'',altura:'',obs:''})
   const [savedC,setSavedC]=React.useState(false)
+  const [extrasF,setExtrasF]=React.useState<SReg[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_saude_extra_flavio')||'null');return v||[{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}catch{return [{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}})
+  const [pesoF,setPesoF]=React.useState('')
+  const [savedF,setSavedF]=React.useState(false)
+  const [humorF,setHumorF]=React.useState('')
+  const [energiaF,setEnergiaF]=React.useState('')
+  const [intestinoF,setIntestinoF]=React.useState('')
+  const [sintF,setSintF]=React.useState('')
+  const [medD,setMedD]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_denise')||'null');return v||[{data:'04/06',pescoco:0,ombro:37,peito:91,cintura:73,bracE:25,bracD:25.5,antebracoE:19.5,antebracoD:19,abdSup:78,abdInf:81,coxaE:48,coxaD:49,panturE:31,panturD:33,quadril:91.5}]}catch{return []}})
+  const [medF,setMedF]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_flavio')||'null');return v||[{data:'29/07',pescoco:41,ombro:42,peito:99,cintura:100,bracE:33,bracD:33,antebracoE:28,antebracoD:29,abdSup:96,abdInf:103,coxaE:56,coxaD:55,panturE:42,panturD:42,quadril:108}]}catch{return []}})
+  const [novaMedD,setNovaMedD]=React.useState({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
+  const [novaMedF,setNovaMedF]=React.useState({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
+  const [savedMedD,setSavedMedD]=React.useState(false)
+  const [savedMedF,setSavedMedF]=React.useState(false)
   const displayList=[...[...OKOK].reverse(),...extras]
   const atual=displayList[0]
   const pesoAtual=atual.peso
@@ -182,17 +247,58 @@ function Saude(){
   const perdeu=Math.round((pesoInicial-pesoAtual)*100)/100
   const gordAtual=atual.gordura
   const ultimaMedida=MEDIDAS[MEDIDAS.length-1]
+  const pesoAtualF=extrasF[0].peso
+  const pesoInicialF=extrasF[extrasF.length-1].peso
+  const perdeuF=Math.round((pesoInicialF-pesoAtualF)*100)/100
   function salvar(){
     if(!peso&&!humor&&!intestino)return
     const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(peso)||0,imc:Number((Number(peso)/(1.63**2)).toFixed(1))||0,gordura:0,humor:Number(humor)||0,energia:Number(energia)||0,intestino,sint}
     const n=[reg,...extras];setExtras(n);localStorage.setItem('dos_saude_extra',JSON.stringify(n))
     setSaved(true);setPeso('');setHumor('');setEnergia('');setIntestino('');setSint('')
   }
+  function salvarFlavio(){
+    if(!pesoF)return
+    const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(pesoF)||0,imc:0,gordura:0,humor:Number(humorF)||0,energia:Number(energiaF)||0,intestino:intestinoF,sint:sintF}
+    const n=[reg,...extrasF];setExtrasF(n);localStorage.setItem('dos_saude_extra_flavio',JSON.stringify(n))
+    setSavedF(true);setPesoF('');setHumorF('');setEnergiaF('');setIntestinoF('');setSintF('')
+  }
+  function addMedD(){
+    const has=Object.values(novaMedD).some(v=>v!=='')
+    if(!has)return
+    const reg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),pescoco:Number(novaMedD.pescoco)||0,ombro:Number(novaMedD.ombro)||0,peito:Number(novaMedD.peito)||0,cintura:Number(novaMedD.cintura)||0,bracE:Number(novaMedD.bracE)||0,bracD:Number(novaMedD.bracD)||0,antebracoE:Number(novaMedD.antebracoE)||0,antebracoD:Number(novaMedD.antebracoD)||0,abdSup:Number(novaMedD.abdSup)||0,abdInf:Number(novaMedD.abdInf)||0,coxaE:Number(novaMedD.coxaE)||0,coxaD:Number(novaMedD.coxaD)||0,panturE:Number(novaMedD.panturE)||0,panturD:Number(novaMedD.panturD)||0,quadril:Number(novaMedD.quadril)||0}
+    const n=[reg,...medD];setMedD(n);localStorage.setItem('dos_medidas_denise',JSON.stringify(n))
+    setSavedMedD(true);setNovaMedD({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
+  }
+  function addMedF(){
+    const has=Object.values(novaMedF).some(v=>v!=='')
+    if(!has)return
+    const reg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),pescoco:Number(novaMedF.pescoco)||0,ombro:Number(novaMedF.ombro)||0,peito:Number(novaMedF.peito)||0,cintura:Number(novaMedF.cintura)||0,bracE:Number(novaMedF.bracE)||0,bracD:Number(novaMedF.bracD)||0,antebracoE:Number(novaMedF.antebracoE)||0,antebracoD:Number(novaMedF.antebracoD)||0,abdSup:Number(novaMedF.abdSup)||0,abdInf:Number(novaMedF.abdInf)||0,coxaE:Number(novaMedF.coxaE)||0,coxaD:Number(novaMedF.coxaD)||0,panturE:Number(novaMedF.panturE)||0,panturD:Number(novaMedF.panturD)||0,quadril:Number(novaMedF.quadril)||0}
+    const n=[reg,...medF];setMedF(n);localStorage.setItem('dos_medidas_flavio',JSON.stringify(n))
+    setSavedMedF(true);setNovaMedF({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
+  }
+  const [medicamentos,setMedicamentos]=React.useState<Record<string,any[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_medicamentos')||'{}')}catch{return {}}})
+  const [novoMed,setNovoMed]=React.useState({nome:'',dosagem:'',frequencia:''})
+  const [savedMed,setSavedMed]=React.useState(false)
+  function addMedicamento(kid:string){
+    if(!novoMed.nome||!novoMed.dosagem)return
+    const reg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),nome:novoMed.nome,dosagem:novoMed.dosagem,frequencia:novoMed.frequencia}
+    const n={...medicamentos,[kid]:[reg,...(medicamentos[kid]||[])]}
+    setMedicamentos(n);localStorage.setItem('dos_medicamentos',JSON.stringify(n))
+    setNovoMed({nome:'',dosagem:'',frequencia:''});setSavedMed(true)
+  }
+  function delMedicamento(kid:string,idx:number){
+    const n={...medicamentos,[kid]:(medicamentos[kid]||[]).filter((_c:any,i:number)=>i!==idx)}
+    setMedicamentos(n);localStorage.setItem('dos_medicamentos',JSON.stringify(n))
+  }
   function addConsulta(kid:string){
     if(!novaConsulta.tipo||!novaConsulta.data)return
     const n={...consuls,[kid]:[{...novaConsulta},...(consuls[kid]||[])]}
     setConsuls(n);localStorage.setItem('dos_consuls',JSON.stringify(n))
     setNovaConsulta({tipo:'',data:'',obs:'',proximo:''});setSavedC(true)
+  }
+  function delConsulta(kid:string,idx:number){
+    const n={...consuls,[kid]:(consuls[kid]||[]).filter((_c:any,i:number)=>i!==idx)}
+    setConsuls(n);localStorage.setItem('dos_consuls',JSON.stringify(n))
   }
   function addCrianca(kid:string){
     if(!novaCrianca.peso&&!novaCrianca.altura)return
@@ -262,20 +368,99 @@ function Saude(){
           </div>
         </Card>
       </div>
+      <Card title="Medidas completas - Denise (04/06/2026)">
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+          {[['Ombro','37'],['Peito','91'],['Cintura','73'],['Braco E/D','25/25,5'],['Antebraco E/D','19,5/19'],['Abd Superior','78'],['Abd Inferior','81'],['Coxa E/D','48/49'],['Panturrilha E/D','31/33'],['Quadril','91,5']].map(([k,v])=>(<div key={k} style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'10px',textAlign:'center' as const}}><div style={{fontSize:16,fontWeight:800,color:C.acc2}}>{v} cm</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:2}}>{k}</div></div>))}
+        </div>
+        <p style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:12}}>Registros do app da balanca SecaVita.</p>
+      </Card>
+      <Card title="Registrar novas medidas - Denise">
+        {savedMedD&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:10}}>
+          {[['pescoco','Pescoco'],['ombro','Ombro'],['peito','Peito'],['cintura','Cintura'],['bracE','Braco E'],['bracD','Braco D'],['antebracoE','Antebraco E'],['antebracoD','Antebraco D'],['abdSup','Abd Sup'],['abdInf','Abd Inf'],['coxaE','Coxa E'],['coxaD','Coxa D'],['panturE','Panturr E'],['panturD','Panturr D'],['quadril','Quadril']].map(([f,l])=>(<div key={f}><label style={{fontSize:10,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>{l}</label><input type="number" step="0.5" value={(novaMedD as any)[f]} onChange={e=>setNovaMedD(p=>({...p,[f]:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 7px',color:'#fff',fontSize:11}}/></div>))}
+        </div>
+        <button onClick={addMedD} style={{width:'100%',background:`linear-gradient(135deg,${C.acc2},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar medidas</button>
+      </Card>
+      <Card title="Evolucao da cintura - Denise">
+        <div style={{height:100,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
+          {[...medD].reverse().map((d,i)=>{
+            const vals=medD.map(x=>x.cintura)
+            const mn=Math.min(...vals)-1,mx=Math.max(...vals)+1
+            const barH=Math.max(Math.round(((d.cintura-mn)/(mx-mn))*95),3)
+            return(<div key={i} title={`${d.data}: ${d.cintura}cm`} style={{width:24,flexShrink:0,borderRadius:'2px 2px 1px 1px',background:`linear-gradient(180deg,${C.acc2},#0369a1)`,height:barH,alignSelf:'flex-end'}}/>)
+          })}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
+          <span>{medD[medD.length-1].data}: {medD[medD.length-1].cintura}cm</span><span>atual: {medD[0].cintura}cm</span>
+        </div>
+      </Card>
     </div>}
 
     {aba==='flavio'&&<div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:16}}>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.water}}>100 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Cintura (29/07)</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.water}}>108 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Quadril (29/07)</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800}}>99 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Peito (29/07)</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800}}>103 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Abd Inf (29/07)</div></div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:16}}>
+        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.water}}>{pesoAtualF} kg</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Peso atual</div></div>
+        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:perdeuF>=0?C.ok:C.danger}}>{perdeuF>=0?'-':'+'}{Math.abs(perdeuF)} kg</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Variacao</div></div>
+        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.acc2}}>100 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Cintura</div></div>
+        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.acc2}}>108 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Quadril</div></div>
+        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800}}>99 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Peito</div></div>
       </div>
-      <Card title="Medidas iniciais — Flávio Dantas (29/07/2026)">
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16}}>
+        <Card title="Evolucao do peso - Flavio">
+          <div style={{height:140,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
+            {[...extrasF].reverse().map((d,i)=>{
+              const vals=extrasF.map(x=>x.peso)
+              const mn=Math.min(...vals)-0.5,mx=Math.max(...vals)+0.5
+              const barH=Math.max(Math.round(((d.peso-mn)/(mx-mn))*135),3)
+              const isMin=d.peso===Math.min(...vals)
+              const isMax=d.peso===Math.max(...vals)
+              return(<div key={i} title={`${d.data}: ${d.peso}kg`} style={{width:28,flexShrink:0,borderRadius:'2px 2px 1px 1px',background:isMin?`linear-gradient(180deg,${C.ok},#15803d)`:isMax?`linear-gradient(180deg,${C.danger},#991b1b)`:`linear-gradient(180deg,${C.water},#0369a1)`,height:barH,alignSelf:'flex-end'}}/>)
+            })}
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
+            <span>{extrasF[extrasF.length-1].data}: {pesoInicialF}kg</span><span>atual: {pesoAtualF}kg</span>
+          </div>
+        </Card>
+        <Card title="Registrar hoje - Flavio">
+          {savedF&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Peso (kg)</label><input type="number" step="0.1" value={pesoF} onChange={e=>setPesoF(e.target.value)} placeholder="95,2" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Humor (1-10)</label><input type="number" min="1" max="10" value={humorF} onChange={e=>setHumorF(e.target.value)} placeholder="8" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Energia (1-10)</label><input type="number" min="1" max="10" value={energiaF} onChange={e=>setEnergiaF(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Intestino</label><select value={intestinoF} onChange={e=>setIntestinoF(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}><option value="">-</option><option>Regular</option><option>Preso</option><option>Solto</option></select></div>
+          </div>
+          <input value={sintF} onChange={e=>setSintF(e.target.value)} placeholder="Sintomas" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
+          <button onClick={salvarFlavio} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar</button>
+          <div style={{marginTop:14,borderTop:`1px solid ${C.line}`,paddingTop:12}}>
+            <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Medidas (29/07)</div>
+            {[['Cintura','100 cm'],['Quadril','108 cm'],['Peito','99 cm'],['Coxa E/D','56/55 cm'],['Abd Sup/Inf','96/103 cm']].map(([k,v])=>(<div key={k} style={{display:'flex',justifyContent:'space-between' as const,fontSize:12,padding:'4px 0',borderBottom:`1px solid ${C.line}`,color:'rgba(255,255,255,.6)'}}><span>{k}</span><span style={{color:C.acc2}}>{v}</span></div>))}
+          </div>
+        </Card>
+      </div>
+      <Card title="Medidas iniciais completas - Flavio Dantas (29/07/2026)">
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-          {[['Pescoço','41'],['Ombro','42'],['Peito','99'],['Cintura','100'],['Braço E/D','33/33'],['Antebraço E/D','28/29'],['Abd Superior','96'],['Abd Inferior','103'],['Coxa E/D','56/55'],['Panturrilha','42/42'],['Quadril','108']].map(([k,v])=>(<div key={k} style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'10px',textAlign:'center' as const}}><div style={{fontSize:16,fontWeight:800,color:C.water}}>{v} cm</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:2}}>{k}</div></div>))}
+          {[['Pescoco','41'],['Ombro','42'],['Peito','99'],['Cintura','100'],['Braco E/D','33/33'],['Antebraco E/D','28/29'],['Abd Superior','96'],['Abd Inferior','103'],['Coxa E/D','56/55'],['Panturrilha','42/42'],['Quadril','108']].map(([k,v])=>(<div key={k} style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'10px',textAlign:'center' as const}}><div style={{fontSize:16,fontWeight:800,color:C.water}}>{v} cm</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:2}}>{k}</div></div>))}
         </div>
-        <p style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:12}}>Registros iniciais SecaVita · quando Flávio tiver novos registros, manda a foto aqui.</p>
+        <p style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:12}}>Registros iniciais SecaVita.</p>
+      </Card>
+      <Card title="Registrar novas medidas - Flavio">
+        {savedMedF&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:10}}>
+          {[['pescoco','Pescoco'],['ombro','Ombro'],['peito','Peito'],['cintura','Cintura'],['bracE','Braco E'],['bracD','Braco D'],['antebracoE','Antebraco E'],['antebracoD','Antebraco D'],['abdSup','Abd Sup'],['abdInf','Abd Inf'],['coxaE','Coxa E'],['coxaD','Coxa D'],['panturE','Panturr E'],['panturD','Panturr D'],['quadril','Quadril']].map(([f,l])=>(<div key={f}><label style={{fontSize:10,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>{l}</label><input type="number" step="0.5" value={(novaMedF as any)[f]} onChange={e=>setNovaMedF(p=>({...p,[f]:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 7px',color:'#fff',fontSize:11}}/></div>))}
+        </div>
+        <button onClick={addMedF} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar medidas</button>
+      </Card>
+      <Card title="Evolucao da cintura - Flavio">
+        <div style={{height:100,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
+          {[...medF].reverse().map((d,i)=>{
+            const vals=medF.map(x=>x.cintura)
+            const mn=Math.min(...vals)-1,mx=Math.max(...vals)+1
+            const barH=Math.max(Math.round(((d.cintura-mn)/(mx-mn))*95),3)
+            return(<div key={i} title={`${d.data}: ${d.cintura}cm`} style={{width:24,flexShrink:0,borderRadius:'2px 2px 1px 1px',background:`linear-gradient(180deg,${C.water},#0369a1)`,height:barH,alignSelf:'flex-end'}}/>)
+          })}
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
+          <span>{medF[medF.length-1].data}: {medF[medF.length-1].cintura}cm</span><span>atual: {medF[0].cintura}cm</span>
+        </div>
       </Card>
     </div>}
 
@@ -284,30 +469,7 @@ function Saude(){
         const kid=aba
         const nome=kid==='domi'?'Domi':'Derick'
         const cor=kid==='domi'?C.pink:C.ok
-        const AVALS_DOMI=[
-    {data:'11/08',tipo:'📝 Prod. Textual AV1',obs:'Poema de Cordel · escrita · peso 10',proximo:''},
-    {data:'12/08',tipo:'🔬 Ciências AV1',obs:'Mapa mental Sistema Urinário · cartolina · apresentação oral · peso 10',proximo:''},
-    {data:'14/08',tipo:'🔢 Matemática AV1',obs:'Números decimais · adição, subtração e multiplicação · peso 10',proximo:''},
-    {data:'17/08',tipo:'📖 Português AV1',obs:'Caps 8 e 9 · Poema, conjunções, aspas, narrador · peso 10',proximo:''},
-    {data:'17/08',tipo:'🎵 Música AV1',obs:'Parâmetros sonoros, ritmo, andamentos · livro págs 57 e 60 · peso 10',proximo:''},
-    {data:'17/08',tipo:'⚽ Ed. Física AV1',obs:'Importância da Atividade Física · atividade em sala · peso 10',proximo:''},
-    {data:'18/08',tipo:'🇬🇧 Inglês AV1',obs:'Routine págs 44-48 · atividade em sala · peso 10',proximo:''},
-    {data:'18/08',tipo:'🎨 Arte AV1',obs:'Colagem com figuras geométricas · livro didático · peso 10',proximo:''},
-    {data:'19/08',tipo:'📜 História AV1',obs:'Símbolos nacionais e República · Missão Criativa Agência Publicidade · slogan+cartaz+propaganda · peso 10',proximo:''},
-    {data:'01/09',tipo:'🔢 Matemática AV3',obs:'Números decimais · lista de exercícios situações problemas · peso 10',proximo:''},
-    {data:'02/09',tipo:'📖 Português AV3',obs:'Notícia · pesquisa sobre notícia do dia que nasceu · apresentação oral · peso 10',proximo:''},
-    {data:'11/09',tipo:'📝 Prod. Textual AV2',obs:'Nossa Turma em Cordel · poema individual · xilogravura · livro da turma · peso 10',proximo:''},
-    {data:'14/09',tipo:'📜 História AV2',obs:'Caps 8 e 9 · apostila págs 78-83 e 86-92 · peso 10',proximo:''},
-    {data:'16/09',tipo:'🔬 Ciências AV2',obs:'Sistema Urinário + Sistema Nervoso · págs 129-136 e 143-148 · peso 10',proximo:''},
-    {data:'17/09',tipo:'📖 Português AV2',obs:'Cordel, rimas, parônimas, sons /S/, substantivo/adjetivo, conjunções · peso 10',proximo:''},
-    {data:'18/09',tipo:'🌍 Geografia AV2',obs:'Indústria e Trabalho nas cidades · caps 8 e 9 · peso 10',proximo:''},
-    {data:'21/09',tipo:'🔄 Recuperação',obs:'Produção Textual · peso 10',proximo:''},
-    {data:'22/09',tipo:'🔄 Recuperação',obs:'Português · peso 10',proximo:''},
-    {data:'28/09',tipo:'🔄 Recuperação',obs:'Matemática · peso 10',proximo:''},
-    {data:'29/09',tipo:'🔄 Recuperação',obs:'Ciências · peso 10',proximo:''},
-    {data:'30/09',tipo:'🔄 Recuperação',obs:'História e Geografia · peso 10',proximo:''},
-  ]
-  const kidConsuls=kid==='domi'?[...AVALS_DOMI,...(consuls[kid]||[])]:(consuls[kid]||[])
+          const kidConsuls=consuls[kid]||[]
         const kidCrianca=criancas[kid]||[]
         return(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
           <div>
@@ -345,12 +507,30 @@ function Saude(){
               <button onClick={()=>addConsulta(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${kid==='domi'?'#9d174d':'#15803d'})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar consulta</button>
               {kidConsuls.length>0&&<div style={{marginTop:12}}>
                 {kidConsuls.map((c,i)=>(<div key={i} style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
-                  <div style={{display:'flex',justifyContent:'space-between' as const,marginBottom:3}}><span style={{fontWeight:700,fontSize:13,color:cor}}>{c.tipo}</span><span style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{c.data}</span></div>
+                  <div style={{display:'flex',justifyContent:'space-between' as const,marginBottom:3}}><span style={{fontWeight:700,fontSize:13,color:cor}}>{c.tipo}</span><span style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'flex',alignItems:'center',gap:8}}>{c.data}<button onClick={()=>delConsulta(kid,i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button></span></div>
                   {c.obs&&<div style={{fontSize:12,color:'rgba(255,255,255,.6)'}}>{c.obs}</div>}
                   {c.proximo&&<div style={{fontSize:11,color:C.warn,marginTop:3}}>📅 Próxima: {c.proximo}</div>}
                 </div>))}
               </div>}
               {kidConsuls.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhuma consulta registrada.</div>}
+            </Card>
+          </div>
+          <div style={{gridColumn:'1 / -1'}}>
+            <Card title={`Medicamentos - ${nome}`}>
+              {savedMed&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:10}}>
+                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Medicamento</label><input value={novoMed.nome} onChange={e=>setNovoMed(p=>({...p,nome:e.target.value}))} placeholder="Ex: Amoxicilina" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Dosagem</label><input value={novoMed.dosagem} onChange={e=>setNovoMed(p=>({...p,dosagem:e.target.value}))} placeholder="Ex: 5ml" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Frequencia</label><input value={novoMed.frequencia} onChange={e=>setNovoMed(p=>({...p,frequencia:e.target.value}))} placeholder="Ex: 2x ao dia" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+              </div>
+              <button onClick={()=>addMedicamento(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${kid==='domi'?'#9d174d':'#15803d'})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar medicamento</button>
+              {(medicamentos[kid]||[]).length>0&&<div style={{marginTop:12}}>
+                {(medicamentos[kid]||[]).map((m:any,i:number)=>(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+                  <div><span style={{fontWeight:700,fontSize:13,color:cor}}>{m.nome}</span><span style={{fontSize:12,color:'rgba(255,255,255,.5)',marginLeft:8}}>{m.dosagem}{m.frequencia?` - ${m.frequencia}`:''}</span></div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{m.data}</span><button onClick={()=>delMedicamento(kid,i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button></div>
+                </div>))}
+              </div>}
+              {(medicamentos[kid]||[]).length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum medicamento registrado.</div>}
             </Card>
           </div>
         </div>)
