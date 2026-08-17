@@ -1236,25 +1236,18 @@ function Familia(){
       const base64=await new Promise<string>((res,rej)=>{
         const r=new FileReader();r.onload=()=>res((r.result as string).split(',')[1]);r.onerror=rej;r.readAsDataURL(file)
       })
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      const resp=await fetch('/api/parse-calendar',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          model:'claude-sonnet-4-6',
-          max_tokens:2000,
-          messages:[{role:'user',content:[
-            {type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}},
-            {type:'text',text:'Extraia todas as avaliações, provas e trabalhos deste calendário escolar. Retorne APENAS um JSON array com objetos: {"data":"DD/MM","tipo":"emoji + nome da matéria + tipo (AV1/AV2/etc)","obs":"conteúdo resumido","feito":false}. Ordene por data. Sem texto extra, sem markdown, apenas o JSON array.'}
-          ]}]
-        })
+        body:JSON.stringify({pdfBase64:base64})
       })
       const data=await resp.json()
-      const text=data.content[0].text.replace(/```json|```/g,'').trim()
-      const extracted:Aval[]=JSON.parse(text)
+      if(!resp.ok) throw new Error(data?.error||'Falha ao processar o PDF.')
+      const extracted:Aval[]=data.avaliacoes
       saveAvals(kid,[...(avals[kid]||[]),...extracted].sort((a,b)=>a.data.localeCompare(b.data)))
       setMsg(`✓ ${extracted.length} avaliações importadas!`)
-    }catch(e){setMsg('❌ Erro ao ler PDF. Tente novamente.')}
-    setLoading(false);setTimeout(()=>setMsg(''),5000)
+    }catch(e:any){setMsg(`❌ ${e?.message||'Erro ao ler PDF. Tente novamente.'}`)}
+    setLoading(false);setTimeout(()=>setMsg(''),6000)
   }
   function openEdit(key:'domi'|'derick'){setLocal(JSON.parse(JSON.stringify(fam)));setEditKey(key);setShowEdit(true)}
   function saveEdit(){if(!editKey)return;setFam(local);setShowEdit(false)}
