@@ -1448,7 +1448,51 @@ function Casa(){
       return(<div key={idx} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:`1px solid ${C.line}`,opacity:item.done?0.5:1}}><span onClick={()=>toggleItem(item)} style={{width:22,height:22,borderRadius:6,border:`2px solid ${item.done?C.ok:'rgba(255,255,255,.2)'}`,background:item.done?'rgba(52,211,153,.2)':'transparent',display:'grid',placeItems:'center',color:C.ok,fontSize:12,flexShrink:0,cursor:'pointer'}}>{item.done&&'✓'}</span><span onClick={()=>toggleItem(item)} style={{flex:1,fontSize:13,textDecoration:item.done?'line-through':'none',color:item.done?'rgba(255,255,255,.4)':'#fff',cursor:'pointer'}}>{item.n}</span>{item.venc&&!item.done&&<span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:urgente?'rgba(248,113,113,.15)':'rgba(251,191,36,.12)',color:urgente?C.danger:C.warn,flexShrink:0,whiteSpace:'nowrap' as const}}>{passada?`venceu ${fmtVenc(item.venc)}`:dv===0?'vence hoje!':dv===1?'vence amanhã!':`${fmtVenc(item.venc)} · ${dv}d`}</span>}<button onClick={()=>iniciarEdicao(item)} style={{background:'rgba(255,255,255,.06)',border:'none',color:'rgba(255,255,255,.6)',borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer',flexShrink:0}}>✎</button><button onClick={()=>delItem(item)} style={{background:'rgba(248,113,113,.1)',border:'none',color:C.danger,borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer',flexShrink:0}}>✕</button></div>)
     })}{items.filter(i=>i.cat===c).length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum item</div>}</Card></div>))}</div>
   </div>)}
-function Insights(){return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Insights</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Padrões observados — associações, não causas.</p>{[{t:'Humor mais alto nos dias com treino',d:'Nos últimos 7 dias, seu humor médio foi maior nos dias em que treinou.',p:'7 dias',c:'associação'},{t:'Proteína abaixo da meta 4 de 7 dias',d:'Queda maior nos fins de semana. Um lanche no sábado pode ajudar.',p:'7 dias',c:'atenção'},{t:'Menos água nas quartas-feiras',d:'Dia de célula à noite — um lembrete extra às 14h pode ajudar.',p:'4 semanas',c:'associação'},{t:'Sequência de leitura: 10 dias 👏',d:'Você manteve a leitura antes de dormir por 10 dias seguidos.',p:'10 dias',c:'conquista'},{t:'Intestino e hidratação caminham juntos',d:'Nos dias com mais de 2L de água, o intestino funcionou melhor.',p:'14 dias',c:'associação'}].map((i,idx)=>(<div key={idx} style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderLeft:`3px solid ${i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc}`,borderRadius:12,padding:16,marginBottom:12}}><div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{i.t}</div><div style={{fontSize:13,color:'rgba(255,255,255,.6)',lineHeight:1.5,marginBottom:10}}>{i.d}</div><div style={{display:'flex',gap:10,fontSize:11,color:'rgba(255,255,255,.4)'}}><span>{i.p}</span><span style={{background:i.c==='conquista'?'rgba(52,211,153,.15)':i.c==='atenção'?'rgba(251,191,36,.15)':'rgba(139,92,246,.15)',color:i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc2,padding:'2px 8px',borderRadius:20}}>{i.c}</span></div></div>))}
+function Insights(){
+  const [tzSched,setTzSched]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
+  const [tzBalance,setTzBalance]=React.useState(0)
+  React.useEffect(()=>{(async()=>{
+    const [{data:sched},{data:bal}]=await Promise.all([
+      supabase.from('tirzepatida_schedule').select('*'),
+      supabase.from('tirzepatida_stock_balance').select('*').maybeSingle(),
+    ])
+    const map:Record<string,any>={}
+    ;(sched||[]).forEach((row:any)=>{map[row.person]={planned_dose_mg:Number(row.planned_dose_mg),interval_days:row.interval_days,next_application_date:row.next_application_date}})
+    setTzSched(map)
+    setTzBalance(Number(bal?.current_balance_mg??0))
+  })()},[])
+  const treinosI=(()=>{try{return JSON.parse(localStorage.getItem('dos_treinos')||'[]')}catch{return []}})() as any[]
+  const leiturasI=(()=>{try{return JSON.parse(localStorage.getItem('dos_leituras')||'[]')}catch{return []}})() as any[]
+  const devI=(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})() as any[]
+  const casaI=(()=>{try{return JSON.parse(localStorage.getItem('dos_casa_items')||'[]')}catch{return []}})() as any[]
+  const livroI=(()=>{try{return JSON.parse(localStorage.getItem('dos_livro_atual')||'null')}catch{return null}})() as any
+  function diasUnicos(entries:any[]):Set<string>{return new Set(entries.map((e:any)=>e.data))}
+  function sequencia(dias:Set<string>):number{
+    let n=0;const d=new Date()
+    while(dias.has(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1)}
+    return n
+  }
+  const treinosSemana=(()=>{const hoje=new Date();const dias=diasUnicos(treinosI);let c=0;for(let i=0;i<7;i++){const d=new Date(hoje);d.setDate(d.getDate()-i);if(dias.has(d.toISOString().slice(0,10)))c++}return c})()
+  const seqLeitura=sequencia(diasUnicos(leiturasI))
+  const seqDev=sequencia(diasUnicos(devI))
+  const hojeIsoI=new Date().toISOString().slice(0,10)
+  const em7diasIsoI=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+  const contasVencendo=casaI.filter((i:any)=>i.cat==='Contas'&&i.venc&&!i.done&&i.venc>=hojeIsoI&&i.venc<=em7diasIsoI)
+  const pessoasSchedI=Object.keys(tzSched)
+  const tzAutonomyI=(()=>{const dDen=tzSched.denise?.planned_dose_mg||5;const dFla=tzSched.flavio?.planned_dose_mg||2.5;const iDen=tzSched.denise?.interval_days||5;const iFla=tzSched.flavio?.interval_days||7;const mgDay=dDen/iDen+dFla/iFla;return mgDay>0?Math.floor(tzBalance/mgDay):0})()
+  const progressoLivro=livroI&&livroI.totalPaginas>0?Math.round(livroI.paginaAtual/livroI.totalPaginas*100):null
+  const insights:{t:string,d:string,p:string,c:string}[]=[]
+  if(treinosI.length>0)insights.push({t:`Treinos: ${treinosSemana} de 7 dias`,d:treinosSemana>=5?'Ótima consistência essa semana!':treinosSemana>=3?'Boa base — dá pra tentar chegar em mais um dia.':'Poucos treinos essa semana. Vale ajustar a meta ou o horário?',p:'últimos 7 dias',c:treinosSemana>=5?'conquista':treinosSemana>=3?'associação':'atenção'})
+  if(seqLeitura>0)insights.push({t:`Sequência de leitura: ${seqLeitura} dia${seqLeitura===1?'':'s'} 👏`,d:'Você tem lido todos os dias seguidos. Continue assim!',p:`${seqLeitura}d seguidos`,c:'conquista'})
+  if(seqDev>0)insights.push({t:`Sequência devocional: ${seqDev} dia${seqDev===1?'':'s'}`,d:'Tempo com Deus mantido em dia.',p:`${seqDev}d seguidos`,c:'conquista'})
+  if(progressoLivro!==null)insights.push({t:`${livroI.titulo||'Livro atual'}: ${progressoLivro}% lido`,d:`${livroI.paginaAtual} de ${livroI.totalPaginas} páginas.`,p:'progresso atual',c:'associação'})
+  if(contasVencendo.length>0)insights.push({t:`${contasVencendo.length} conta${contasVencendo.length===1?'':'s'} vencendo nos próximos 7 dias`,d:contasVencendo.map((c:any)=>c.n).join(', '),p:'Casa',c:'atenção'})
+  if(pessoasSchedI.length>0)insights.push({t:tzAutonomyI<=14?`Estoque de tirzepatida baixo: ~${tzAutonomyI} dias`:`Estoque de tirzepatida: ~${tzAutonomyI} dias de autonomia`,d:tzAutonomyI<=14?'Vale considerar reposição em breve.':'Autonomia tranquila por enquanto.',p:'agora',c:tzAutonomyI<=14?'atenção':'associação'})
+  return(<div style={{padding:'24px 28px'}}>
+    <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Insights</h1>
+    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Calculado a partir dos seus dados reais registrados no app.</p>
+    {insights.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.4)',padding:'20px 0'}}>Ainda não há dados suficientes para gerar insights. Continue registrando seus hábitos pelo app.</div>}
+    {insights.map((i,idx)=>(<div key={idx} style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderLeft:`3px solid ${i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc}`,borderRadius:12,padding:16,marginBottom:12}}><div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{i.t}</div><div style={{fontSize:13,color:'rgba(255,255,255,.6)',lineHeight:1.5,marginBottom:10}}>{i.d}</div><div style={{display:'flex',gap:10,fontSize:11,color:'rgba(255,255,255,.4)'}}><span>{i.p}</span><span style={{background:i.c==='conquista'?'rgba(52,211,153,.15)':i.c==='atenção'?'rgba(251,191,36,.15)':'rgba(139,92,246,.15)',color:i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc2,padding:'2px 8px',borderRadius:20}}>{i.c}</span></div></div>))}
 </div>)}
 function Relatorios(){
   const [tzSched,setTzSched]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
