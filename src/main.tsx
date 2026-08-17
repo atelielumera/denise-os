@@ -1405,11 +1405,22 @@ function Casa(){
   const [nova,setNova]=React.useState('')
   const [cat,setCat]=React.useState('Mercado')
   const [novoVenc,setNovoVenc]=React.useState('')
+  const [editando,setEditando]=React.useState<CasaItem|null>(null)
+  const [editNome,setEditNome]=React.useState('')
+  const [editVenc,setEditVenc]=React.useState('')
   const cats=['Mercado','Doméstico','Manutenção','Contas']
   function salvarItems(n:CasaItem[]){setItems(n);localStorage.setItem('dos_casa_items',JSON.stringify(n))}
   function addItem(){if(!nova)return;const item:CasaItem={n:nova,cat,done:false};if(cat==='Contas'&&novoVenc)item.venc=novoVenc;salvarItems([item,...items]);setNova('');setNovoVenc('')}
   function toggleItem(item:CasaItem){salvarItems(items.map(x=>x===item?{...x,done:!x.done}:x))}
   function delItem(item:CasaItem){salvarItems(items.filter(x=>x!==item))}
+  function iniciarEdicao(item:CasaItem){setEditando(item);setEditNome(item.n);setEditVenc(item.venc||'')}
+  function salvarEdicao(){
+    if(!editando)return
+    if(!editNome){setEditando(null);return}
+    salvarItems(items.map(x=>x===editando?{...x,n:editNome,venc:editando.cat==='Contas'?(editVenc||undefined):x.venc}:x))
+    setEditando(null)
+  }
+  function cancelarEdicao(){setEditando(null)}
   function fmtVenc(v:string){return new Date(v+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
   function diasVenc(v:string){const hoje=new Date();hoje.setHours(0,0,0,0);const d=new Date(v+'T00:00:00');return Math.round((d.getTime()-hoje.getTime())/86400000)}
   return(<div style={{padding:'24px 28px'}}>
@@ -1425,7 +1436,16 @@ function Casa(){
       const dv=item.venc?diasVenc(item.venc):null
       const urgente=dv!==null&&dv<=3
       const passada=dv!==null&&dv<0
-      return(<div key={idx} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:`1px solid ${C.line}`,opacity:item.done?0.5:1}}><span onClick={()=>toggleItem(item)} style={{width:22,height:22,borderRadius:6,border:`2px solid ${item.done?C.ok:'rgba(255,255,255,.2)'}`,background:item.done?'rgba(52,211,153,.2)':'transparent',display:'grid',placeItems:'center',color:C.ok,fontSize:12,flexShrink:0,cursor:'pointer'}}>{item.done&&'✓'}</span><span onClick={()=>toggleItem(item)} style={{flex:1,fontSize:13,textDecoration:item.done?'line-through':'none',color:item.done?'rgba(255,255,255,.4)':'#fff',cursor:'pointer'}}>{item.n}</span>{item.venc&&!item.done&&<span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:urgente?'rgba(248,113,113,.15)':'rgba(251,191,36,.12)',color:urgente?C.danger:C.warn,flexShrink:0,whiteSpace:'nowrap' as const}}>{passada?`venceu ${fmtVenc(item.venc)}`:dv===0?'vence hoje!':dv===1?'vence amanhã!':`${fmtVenc(item.venc)} · ${dv}d`}</span>}<button onClick={()=>delItem(item)} style={{background:'rgba(248,113,113,.1)',border:'none',color:C.danger,borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer',flexShrink:0}}>✕</button></div>)
+      const emEdicao=editando===item
+      if(emEdicao){
+        return(<div key={idx} style={{display:'flex',alignItems:'center',gap:8,padding:'9px 0',borderBottom:`1px solid ${C.line}`,flexWrap:'wrap' as const}}>
+          <input value={editNome} onChange={e=>setEditNome(e.target.value)} onKeyDown={e=>e.key==='Enter'&&salvarEdicao()} autoFocus style={{flex:1,minWidth:120,background:C.bg,border:`1px solid ${C.line}`,borderRadius:8,padding:'6px 9px',color:'#fff',fontSize:13}}/>
+          {item.cat==='Contas'&&<input type="date" value={editVenc} onChange={e=>setEditVenc(e.target.value)} style={{background:C.bg,border:`1px solid ${C.line}`,borderRadius:8,padding:'6px 9px',color:'#fff',fontSize:13,colorScheme:'dark'}}/>}
+          <button onClick={salvarEdicao} style={{background:C.ok,border:'none',color:'#04231a',borderRadius:6,padding:'5px 10px',fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0}}>✓</button>
+          <button onClick={cancelarEdicao} style={{background:'rgba(255,255,255,.08)',border:'none',color:'#fff',borderRadius:6,padding:'5px 10px',fontSize:11,cursor:'pointer',flexShrink:0}}>✕</button>
+        </div>)
+      }
+      return(<div key={idx} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:`1px solid ${C.line}`,opacity:item.done?0.5:1}}><span onClick={()=>toggleItem(item)} style={{width:22,height:22,borderRadius:6,border:`2px solid ${item.done?C.ok:'rgba(255,255,255,.2)'}`,background:item.done?'rgba(52,211,153,.2)':'transparent',display:'grid',placeItems:'center',color:C.ok,fontSize:12,flexShrink:0,cursor:'pointer'}}>{item.done&&'✓'}</span><span onClick={()=>toggleItem(item)} style={{flex:1,fontSize:13,textDecoration:item.done?'line-through':'none',color:item.done?'rgba(255,255,255,.4)':'#fff',cursor:'pointer'}}>{item.n}</span>{item.venc&&!item.done&&<span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:urgente?'rgba(248,113,113,.15)':'rgba(251,191,36,.12)',color:urgente?C.danger:C.warn,flexShrink:0,whiteSpace:'nowrap' as const}}>{passada?`venceu ${fmtVenc(item.venc)}`:dv===0?'vence hoje!':dv===1?'vence amanhã!':`${fmtVenc(item.venc)} · ${dv}d`}</span>}<button onClick={()=>iniciarEdicao(item)} style={{background:'rgba(255,255,255,.06)',border:'none',color:'rgba(255,255,255,.6)',borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer',flexShrink:0}}>✎</button><button onClick={()=>delItem(item)} style={{background:'rgba(248,113,113,.1)',border:'none',color:C.danger,borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer',flexShrink:0}}>✕</button></div>)
     })}{items.filter(i=>i.cat===c).length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum item</div>}</Card></div>))}</div>
   </div>)}
 function Insights(){return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Insights</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Padrões observados — associações, não causas.</p>{[{t:'Humor mais alto nos dias com treino',d:'Nos últimos 7 dias, seu humor médio foi maior nos dias em que treinou.',p:'7 dias',c:'associação'},{t:'Proteína abaixo da meta 4 de 7 dias',d:'Queda maior nos fins de semana. Um lanche no sábado pode ajudar.',p:'7 dias',c:'atenção'},{t:'Menos água nas quartas-feiras',d:'Dia de célula à noite — um lembrete extra às 14h pode ajudar.',p:'4 semanas',c:'associação'},{t:'Sequência de leitura: 10 dias 👏',d:'Você manteve a leitura antes de dormir por 10 dias seguidos.',p:'10 dias',c:'conquista'},{t:'Intestino e hidratação caminham juntos',d:'Nos dias com mais de 2L de água, o intestino funcionou melhor.',p:'14 dias',c:'associação'}].map((i,idx)=>(<div key={idx} style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderLeft:`3px solid ${i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc}`,borderRadius:12,padding:16,marginBottom:12}}><div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{i.t}</div><div style={{fontSize:13,color:'rgba(255,255,255,.6)',lineHeight:1.5,marginBottom:10}}>{i.d}</div><div style={{display:'flex',gap:10,fontSize:11,color:'rgba(255,255,255,.4)'}}><span>{i.p}</span><span style={{background:i.c==='conquista'?'rgba(52,211,153,.15)':i.c==='atenção'?'rgba(251,191,36,.15)':'rgba(139,92,246,.15)',color:i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc2,padding:'2px 8px',borderRadius:20}}>{i.c}</span></div></div>))}
