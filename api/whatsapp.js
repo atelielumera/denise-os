@@ -64,7 +64,7 @@ export default async function handler(req, res) {
         return
       }
       const base64 = r.data?.base64 || r.data?.qrcode?.base64 || null
-      const pairingCode = r.data?.pairingCode || r.data?.code || null
+      const pairingCode = r.data?.pairingCode || null
       if (!base64 && !pairingCode) {
         res.status(200).json({ base64: null, pairingCode: null, message: 'Numero ja pode estar conectado. Verifique o status.' })
         return
