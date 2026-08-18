@@ -58,7 +58,7 @@ export async function askLuna(systemPrompt, userContent) {
   return data.content?.find((b) => b.type === 'text')?.text || 'Desculpa, não consegui gerar isso agora.'
 }
 
-function getSupabaseAdmin() {
+export function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !serviceKey) return null

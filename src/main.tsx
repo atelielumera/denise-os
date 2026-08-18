@@ -271,6 +271,11 @@ function Agenda(){
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[])
 
+  React.useEffect(()=>{
+    const iv=setInterval(()=>{tentarReconectarSilencioso()},45*60*1000)
+    return ()=>clearInterval(iv)
+  },[])
+
   function buscarEventosGoogle(token:string){
     setGLoading(true);setGErro('')
     const hoje=new Date()
@@ -287,36 +292,20 @@ function Agenda(){
       .catch(()=>{setGErro('Erro ao buscar eventos do Google.');setGLoading(false)})
   }
 
-  function salvarTokenGoogle(resp:any){
-    setGToken(resp.access_token)
-    const expiresAt=Date.now()+((resp.expires_in||3600)*1000)
-    try{localStorage.setItem('dos_google_token',JSON.stringify({token:resp.access_token,expiresAt}))}catch{}
-    buscarEventosGoogle(resp.access_token)
-  }
-
   function tentarReconectarSilencioso(){
-    const g=(window as any).google
-    if(!g||!g.accounts||!g.accounts.oauth2)return
-    const tokenClient=g.accounts.oauth2.initTokenClient({
-      client_id:GOOGLE_CLIENT_ID,
-      scope:GOOGLE_SCOPE,
-      callback:(resp:any)=>{if(resp&&resp.access_token)salvarTokenGoogle(resp)}
-    })
-    try{tokenClient.requestAccessToken({prompt:''})}catch{}
+    fetch('/api/google-token').then(r=>r.json()).then(data=>{
+      if(data&&data.access_token){
+        setGToken(data.access_token)
+        try{localStorage.setItem('dos_google_token',JSON.stringify({token:data.access_token,expiresAt:data.expires_at||(Date.now()+50*60*1000)}))}catch{}
+        buscarEventosGoogle(data.access_token)
+      }
+    }).catch(()=>{})
   }
 
   function conectarGoogle(){
-    const g=(window as any).google
-    if(!g||!g.accounts||!g.accounts.oauth2){setGErro('Google ainda carregando, tenta de novo em alguns segundos.');return}
-    const tokenClient=g.accounts.oauth2.initTokenClient({
-      client_id:GOOGLE_CLIENT_ID,
-      scope:GOOGLE_SCOPE,
-      callback:(resp:any)=>{
-        if(resp&&resp.access_token)salvarTokenGoogle(resp)
-        else setGErro('Nao foi possivel conectar ao Google.')
-      }
-    })
-    tokenClient.requestAccessToken()
+    const redirectUri=`${window.location.origin}/api/google-oauth-callback`
+    const url=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&access_type=offline&prompt=consent&scope=${encodeURIComponent(GOOGLE_SCOPE)}`
+    window.location.href=url
   }
 
   function addHora(hhmm:string){
