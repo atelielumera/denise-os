@@ -1695,7 +1695,7 @@ function Assistente(){
     const rotinaDoneHoje=(()=>{try{return JSON.parse(localStorage.getItem(`dos_rotina_done_${hojeIso}`)||'[]')}catch{return []}})() as number[]
     const agendaProximos7Dias=[
       ...agendaLocal.map((e:any)=>({data:e.data,hora:e.hora,titulo:e.nome,origem:'app'})),
-      ...agendaGoogle.map((ev:any)=>({data:(ev.start?.dateTime||ev.start?.date||'').slice(0,10),hora:ev.start?.dateTime?new Date(ev.start.dateTime).toISOString().slice(11,16):'',titulo:ev.summary||'(sem titulo)',origem:'google_calendar'})),
+      ...agendaGoogle.map((ev:any)=>{const dtEv=ev.start?.dateTime?new Date(ev.start.dateTime):null;return{data:(ev.start?.dateTime||ev.start?.date||'').slice(0,10),hora:dtEv?`${String(dtEv.getHours()).padStart(2,'0')}:${String(dtEv.getMinutes()).padStart(2,'0')}`:'',titulo:ev.summary||'(sem titulo)',origem:'google_calendar'}}),
     ].filter(e=>e.data>=hojeIso&&e.data<=em7diasIso).sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))
     return {
       data_hoje:hojeIso,
