@@ -73,7 +73,26 @@ function Ring({pct,color,size=72,label}:{pct:number,color:string,size?:number,la
 function Card({title,action,children}:{title:string,action?:React.ReactNode,children:React.ReactNode}){return(<div style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18,minWidth:0}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}><h3 style={{fontSize:15,fontWeight:700,margin:0}}>{title}</h3>{action}</div>{children}</div>)}
 function Lrow({icon,name,val,ok,color}:{icon:string,name:string,val:string,ok?:boolean,color?:string}){return(<div style={{display:'flex',alignItems:'center',gap:10,padding:'7px 2px',borderBottom:`1px solid ${C.line}`,fontSize:13}}><span style={{width:26,height:26,borderRadius:8,background:C.s2,display:'grid',placeItems:'center',color:color||'rgba(255,255,255,.6)',fontSize:14}}>{icon}</span><span style={{flex:1}}>{name}</span><span style={{color:ok?C.ok:'rgba(255,255,255,.6)',fontSize:12.5}}>{val}{ok&&' ✓'}</span></div>)}
 function ModalFam({onClose}:{onClose:()=>void}){const {fam,setFam}=React.useContext(FamCtx);const [local,setLocal]=React.useState(JSON.parse(JSON.stringify(fam)));const days:[number,string][]=[[1,'Seg'],[2,'Ter'],[3,'Qua'],[4,'Qui'],[5,'Sex']];return(<div onClick={e=>{if(e.target===e.currentTarget)onClose()}} style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',backdropFilter:'blur(4px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}><div style={{background:'linear-gradient(180deg,#1c1c28,#16161f)',border:'1px solid rgba(255,255,255,.12)',borderRadius:20,width:'100%',maxWidth:480,maxHeight:'88vh',overflow:'auto'}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 18px',borderBottom:`1px solid ${C.line}`,position:'sticky',top:0,background:'#1c1c28'}}><h3 style={{margin:0,fontSize:16}}>Rotina das crianças</h3><button onClick={onClose} style={{width:30,height:30,borderRadius:9,background:C.s3,border:'none',color:'rgba(255,255,255,.6)',cursor:'pointer',fontSize:16}}>✕</button></div>{(['domi','derick'] as const).map(key=>{const nome=key==='domi'?'Domi':'Derick';return(<div key={key} style={{padding:'18px',borderBottom:`1px solid ${C.line}`}}><div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}><Avatar id={key} label={nome[0]} size={52} radius={13}/><div><div style={{fontWeight:700,fontSize:15}}>{nome}</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>Toque na foto para alterar</div></div></div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',textTransform:'uppercase' as const,letterSpacing:'.4px',display:'block',marginBottom:5}}>Ida</label><input type="time" value={local[key].dropOff} onChange={e=>setLocal((p:typeof fam)=>({...p,[key]:{...p[key],dropOff:e.target.value}}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:15,marginBottom:14,colorScheme:'dark'}}/><label style={{fontSize:12,color:'rgba(255,255,255,.4)',textTransform:'uppercase' as const,letterSpacing:'.4px',display:'block',marginBottom:8}}>Busca por dia</label><div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>{days.map(([d,dn])=>(<div key={d}><div style={{fontSize:10.5,color:'rgba(255,255,255,.6)',textAlign:'center' as const,fontWeight:700,marginBottom:4}}>{dn}</div><input type="time" value={local[key].pk[d]||''} onChange={e=>setLocal((p:typeof fam)=>({...p,[key]:{...p[key],pk:{...p[key].pk,[d]:e.target.value}}}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'7px 2px',color:'#fff',fontSize:11,textAlign:'center' as const,colorScheme:'dark'}}/></div>))}</div></div>)})}<div style={{display:'flex',gap:10,padding:'14px 18px',position:'sticky',bottom:0,background:'#1c1c28'}}><button onClick={onClose} style={{flex:1,background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'11px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Cancelar</button><button onClick={()=>{setFam(local);onClose()}} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,border:'none',color:'#fff',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>✓ Salvar</button></div></div></div>)}
-function Shell(){return(<div style={{display:'flex',minHeight:'100vh',background:C.bg,color:'#f3f3f8'}}><aside style={{width:240,flexShrink:0,background:'linear-gradient(180deg,#101018,#0c0c12)',borderRight:`1px solid ${C.line}`,padding:'16px 12px',display:'flex',flexDirection:'column',gap:2,position:'sticky',top:0,height:'100vh',overflowY:'auto'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 6px 14px'}}><div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(145deg,#8b5cf6,#6d28d9)',display:'grid',placeItems:'center',fontSize:18}}>💜</div><div><div style={{fontWeight:800,fontSize:16}}>Denise OS</div><div style={{fontSize:10,color:'#7d7d90'}}>Seu sistema operacional de vida</div></div></div><nav style={{display:'flex',flexDirection:'column',gap:2}}>{navItems.map(([to,label,icon])=>(<NavLink key={to} to={to} end={to==='/'} style={({isActive})=>({display:'flex',alignItems:'center',gap:9,padding:'9px 10px',borderRadius:10,fontSize:13.5,fontWeight:500,color:isActive?'#fff':'rgba(255,255,255,.6)',background:isActive?'rgba(139,92,246,.15)':'transparent',textDecoration:'none',position:'relative'})}>{({isActive})=><>{isActive&&<span style={{position:'absolute',left:-12,top:8,bottom:8,width:3,borderRadius:'0 3px 3px 0',background:C.acc}}/>}<span style={{fontSize:14}}>{icon}</span>{label}</>}</NavLink>))}</nav><div style={{marginTop:14,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:8}}>Score da semana</div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28,fontWeight:800}}>92%</span><span style={{fontSize:11,color:C.ok,fontWeight:700}}>▲ 8%</span></div><div style={{display:'flex',gap:4,alignItems:'flex-end',height:40,marginTop:10}}>{[60,80,70,90,75,85,40].map((h,i)=><span key={i} style={{flex:1,borderRadius:'3px 3px 2px 2px',height:`${h}%`,background:i<3?`linear-gradient(180deg,${C.ok},#15803d)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`}}/>)}</div></div><div style={{marginTop:10,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:12}}>Sequência atual</div><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>{[{n:12,l:'Espiritual',c:C.pink},{n:8,l:'Treino',c:C.ok},{n:10,l:'Leitura',c:C.warn},{n:7,l:'Água',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}</div></div><button onClick={()=>supabase.auth.signOut()} style={{marginTop:10,width:'100%',background:'transparent',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.5)',borderRadius:10,padding:'9px',fontSize:12.5,cursor:'pointer'}}>Sair</button></aside><div style={{flex:1,minWidth:0}}><Outlet/></div></div>)}
+function Shell(){
+  React.useEffect(()=>{
+    const EXCLUIR=['dos_google_token','dos_photos','dos_cfg_notif','dos_cfg_resumo','dos_cfg_fuso','dos_cfg_formato']
+    function sincronizarSnapshot(){
+      const dados:Record<string,any>={}
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i)
+        if(!k||!k.startsWith('dos_')||EXCLUIR.includes(k))continue
+        const v=localStorage.getItem(k)
+        if(v===null)continue
+        try{dados[k]=JSON.parse(v)}catch{dados[k]=v}
+      }
+      supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()}).then(()=>{})
+    }
+    sincronizarSnapshot()
+    const t=setInterval(sincronizarSnapshot,5*60*1000)
+    window.addEventListener('beforeunload',sincronizarSnapshot)
+    return()=>{clearInterval(t);window.removeEventListener('beforeunload',sincronizarSnapshot)}
+  },[])
+  return(<div style={{display:'flex',minHeight:'100vh',background:C.bg,color:'#f3f3f8'}}><aside style={{width:240,flexShrink:0,background:'linear-gradient(180deg,#101018,#0c0c12)',borderRight:`1px solid ${C.line}`,padding:'16px 12px',display:'flex',flexDirection:'column',gap:2,position:'sticky',top:0,height:'100vh',overflowY:'auto'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 6px 14px'}}><div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(145deg,#8b5cf6,#6d28d9)',display:'grid',placeItems:'center',fontSize:18}}>💜</div><div><div style={{fontWeight:800,fontSize:16}}>Denise OS</div><div style={{fontSize:10,color:'#7d7d90'}}>Seu sistema operacional de vida</div></div></div><nav style={{display:'flex',flexDirection:'column',gap:2}}>{navItems.map(([to,label,icon])=>(<NavLink key={to} to={to} end={to==='/'} style={({isActive})=>({display:'flex',alignItems:'center',gap:9,padding:'9px 10px',borderRadius:10,fontSize:13.5,fontWeight:500,color:isActive?'#fff':'rgba(255,255,255,.6)',background:isActive?'rgba(139,92,246,.15)':'transparent',textDecoration:'none',position:'relative'})}>{({isActive})=><>{isActive&&<span style={{position:'absolute',left:-12,top:8,bottom:8,width:3,borderRadius:'0 3px 3px 0',background:C.acc}}/>}<span style={{fontSize:14}}>{icon}</span>{label}</>}</NavLink>))}</nav><div style={{marginTop:14,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:8}}>Score da semana</div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28,fontWeight:800}}>92%</span><span style={{fontSize:11,color:C.ok,fontWeight:700}}>▲ 8%</span></div><div style={{display:'flex',gap:4,alignItems:'flex-end',height:40,marginTop:10}}>{[60,80,70,90,75,85,40].map((h,i)=><span key={i} style={{flex:1,borderRadius:'3px 3px 2px 2px',height:`${h}%`,background:i<3?`linear-gradient(180deg,${C.ok},#15803d)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`}}/>)}</div></div><div style={{marginTop:10,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:12}}>Sequência atual</div><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>{[{n:12,l:'Espiritual',c:C.pink},{n:8,l:'Treino',c:C.ok},{n:10,l:'Leitura',c:C.warn},{n:7,l:'Água',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}</div></div><button onClick={()=>supabase.auth.signOut()} style={{marginTop:10,width:'100%',background:'transparent',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.5)',borderRadius:10,padding:'9px',fontSize:12.5,cursor:'pointer'}}>Sair</button></aside><div style={{flex:1,minWidth:0}}><Outlet/></div></div>)}
 function Home(){const navigate=useNavigate();
   const [tzSched,setTzSched]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
   const [tzBalance,setTzBalance]=React.useState(0)
@@ -247,7 +266,8 @@ function Agenda(){
   },[])
 
   React.useEffect(()=>{
-    if(gToken)buscarEventosGoogle(gToken)
+    if(gToken){buscarEventosGoogle(gToken);return}
+    tentarReconectarSilencioso()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[])
 
@@ -258,8 +278,31 @@ function Agenda(){
     const timeMax=new Date(hoje.getFullYear(),hoje.getMonth()+10,1).toISOString()
     fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&maxResults=250&singleEvents=true&orderBy=startTime`,{headers:{Authorization:`Bearer ${token}`}})
       .then(r=>r.json())
-      .then(data=>{setGEventos(data.items||[]);setGLoading(false)})
+      .then(data=>{
+        const items=data.items||[]
+        setGEventos(items)
+        setGLoading(false)
+        try{localStorage.setItem('dos_google_events_cache',JSON.stringify(items))}catch{}
+      })
       .catch(()=>{setGErro('Erro ao buscar eventos do Google.');setGLoading(false)})
+  }
+
+  function salvarTokenGoogle(resp:any){
+    setGToken(resp.access_token)
+    const expiresAt=Date.now()+((resp.expires_in||3600)*1000)
+    try{localStorage.setItem('dos_google_token',JSON.stringify({token:resp.access_token,expiresAt}))}catch{}
+    buscarEventosGoogle(resp.access_token)
+  }
+
+  function tentarReconectarSilencioso(){
+    const g=(window as any).google
+    if(!g||!g.accounts||!g.accounts.oauth2)return
+    const tokenClient=g.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_CLIENT_ID,
+      scope:GOOGLE_SCOPE,
+      callback:(resp:any)=>{if(resp&&resp.access_token)salvarTokenGoogle(resp)}
+    })
+    try{tokenClient.requestAccessToken({prompt:''})}catch{}
   }
 
   function conectarGoogle(){
@@ -269,12 +312,8 @@ function Agenda(){
       client_id:GOOGLE_CLIENT_ID,
       scope:GOOGLE_SCOPE,
       callback:(resp:any)=>{
-        if(resp&&resp.access_token){
-          setGToken(resp.access_token)
-          const expiresAt=Date.now()+((resp.expires_in||3600)*1000)
-          try{localStorage.setItem('dos_google_token',JSON.stringify({token:resp.access_token,expiresAt}))}catch{}
-          buscarEventosGoogle(resp.access_token)
-        }else{setGErro('Nao foi possivel conectar ao Google.')}
+        if(resp&&resp.access_token)salvarTokenGoogle(resp)
+        else setGErro('Nao foi possivel conectar ao Google.')
       }
     })
     tokenClient.requestAccessToken()
@@ -1591,11 +1630,21 @@ function Assistente(){
     const devI=(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})() as any[]
     const casaI=(()=>{try{return JSON.parse(localStorage.getItem('dos_casa_items')||'[]')}catch{return []}})() as any[]
     const livroI=(()=>{try{return JSON.parse(localStorage.getItem('dos_livro_atual')||'null')}catch{return null}})() as any
+    const agendaLocal=(()=>{try{return JSON.parse(localStorage.getItem('dos_agenda')||'[]')}catch{return []}})() as any[]
+    const agendaGoogle=(()=>{try{return JSON.parse(localStorage.getItem('dos_google_events_cache')||'[]')}catch{return []}})() as any[]
+    const medicamentosI=(()=>{try{return JSON.parse(localStorage.getItem('dos_medicamentos')||'{}')}catch{return {}}})() as any
+    const trabalhoI=(()=>{try{return JSON.parse(localStorage.getItem('dos_trabalho')||'[]')}catch{return []}})() as any[]
+    const rotinaItensI=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'[]')}catch{return []}})() as any[]
     function diasUnicos(entries:any[]):Set<string>{return new Set(entries.map((e:any)=>e.data))}
     function sequencia(dias:Set<string>):number{let n=0;const d=new Date();while(dias.has(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1)}return n}
     const hojeIso=new Date().toISOString().slice(0,10)
     const em7diasIso=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
     const contasVencendo=casaI.filter((i:any)=>i.cat==='Contas'&&i.venc&&!i.done&&i.venc>=hojeIso&&i.venc<=em7diasIso)
+    const rotinaDoneHoje=(()=>{try{return JSON.parse(localStorage.getItem(`dos_rotina_done_${hojeIso}`)||'[]')}catch{return []}})() as number[]
+    const agendaProximos7Dias=[
+      ...agendaLocal.map((e:any)=>({data:e.data,hora:e.hora,titulo:e.nome,origem:'app'})),
+      ...agendaGoogle.map((ev:any)=>({data:(ev.start?.dateTime||ev.start?.date||'').slice(0,10),hora:ev.start?.dateTime?new Date(ev.start.dateTime).toISOString().slice(11,16):'',titulo:ev.summary||'(sem titulo)',origem:'google_calendar'})),
+    ].filter(e=>e.data>=hojeIso&&e.data<=em7diasIso).sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))
     return {
       data_hoje:hojeIso,
       tirzepatida:Object.keys(tzSched).length>0?{estoque_atual_mg:tzBalance,denise:tzSched.denise||null,flavio:tzSched.flavio||null}:null,
@@ -1604,6 +1653,10 @@ function Assistente(){
       sequencia_devocional_dias:sequencia(diasUnicos(devI)),
       livro_atual:livroI,
       contas_vencendo_7dias:contasVencendo.map((c:any)=>({nome:c.n,vencimento:c.venc})),
+      agenda_proximos_7dias:agendaProximos7Dias,
+      rotina_de_hoje:rotinaItensI.map((it:any,i:number)=>({horario:it.t,nome:it.n,categoria:it.cat,feito_hoje:rotinaDoneHoje.includes(i)})),
+      medicamentos:medicamentosI,
+      trabalho_tarefas:trabalhoI,
     }
   }
 

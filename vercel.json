@@ -1,1 +1,9 @@
-{"rewrites":[{"source":"/((?!api/).*)", "destination":"/"}]}
+{
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/" }],
+  "crons": [
+    { "path": "/api/cron-morning", "schedule": "0 9 * * *" },
+    { "path": "/api/cron-evening", "schedule": "0 23 * * *" },
+    { "path": "/api/cron-weekly", "schedule": "5 23 * * 5" },
+    { "path": "/api/cron-nextweek", "schedule": "10 23 * * 0" }
+  ]
+}
