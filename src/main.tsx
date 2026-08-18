@@ -106,22 +106,11 @@ function Shell(){
     }
     sincronizarSnapshot()
     const t=setInterval(sincronizarSnapshot,30*1000)
-    let debounceSync:any=null
-    const origSetItem=localStorage.setItem.bind(localStorage)
-    localStorage.setItem=function(key:string,value:string){
-      origSetItem(key,value)
-      if(key.startsWith('dos_')){
-        if(debounceSync)clearTimeout(debounceSync)
-        debounceSync=setTimeout(sincronizarSnapshot,4000)
-      }
-    }
     function sincronizarSeEscondeu(){if(document.hidden)sincronizarSnapshot()}
     window.addEventListener('beforeunload',sincronizarSnapshot)
     document.addEventListener('visibilitychange',sincronizarSeEscondeu)
     return()=>{
       clearInterval(t)
-      if(debounceSync)clearTimeout(debounceSync)
-      localStorage.setItem=origSetItem
       window.removeEventListener('beforeunload',sincronizarSnapshot)
       document.removeEventListener('visibilitychange',sincronizarSeEscondeu)
     }
