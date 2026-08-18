@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 applied = []
 
@@ -12,6 +13,12 @@ main_file = Path("src/main.tsx")
 if not main_file.exists():
     raise SystemExit("ABORTADO (main-tsx-nao-encontrado): rode este script na raiz do projeto denise-os.")
 s = main_file.read_text()
+
+# --- 0) limpar o script anterior que ficou parado no repo sem efeito (abortou antes de mudar nada) ---
+old_script = Path("fix_100_completo.py")
+if old_script.exists():
+    old_script.unlink()
+    applied.append("fix_100_completo.py removido (tinha abortado sem alterar nada)")
 
 # --- 1) Helpers globais de agua (registro diario de verdade, nao mais um contador que nunca zera) ---
 old_c = "const C={bg:'#0a0a0f',s:'#16161f',s2:'#1c1c28',s3:'#22222f',line:'rgba(255,255,255,.07)',acc:'#8b5cf6',acc2:'#a78bfa',ok:'#34d399',water:'#38bdf8',warn:'#fbbf24',danger:'#f87171',pink:'#f472b6',teal:'#2dd4bf'}"
@@ -61,7 +68,7 @@ new_h4 = "{livroAtualHome&&livroAtualHome.titulo?<><div style={{fontWeight:700,f
 s = replace_once(s, old_h4, new_h4, "home-livro-card")
 applied.append("Home(): card Desenvolvimento mostra o livro atual de verdade")
 
-# --- 4) Alimentacao(): mesma correcao de agua (era um segundo contador que nunca reseta, agora usa o mesmo registro diario) ---
+# --- 4) Alimentacao(): mesma correcao de agua ---
 old_a1 = "const [wat,setWat]=React.useState(()=>Number(localStorage.getItem('dos_wat')||0))"
 new_a1 = "const [wat,setWat]=React.useState(lerAguaHoje)"
 s = replace_once(s, old_a1, new_a1, "alimentacao-wat-init")
@@ -83,26 +90,15 @@ new_r1 = "const watR=lerAguaHoje()"
 s = replace_once(s, old_r1, new_r1, "relatorios-watR")
 applied.append("Relatorios(): agua do dia vem do registro diario")
 
-# --- 6) Shell(): sincronizacao quase em tempo real (poucos segundos) em vez de a cada 5 minutos ---
-old_sync = """  },[])
-  return(<div style={{display:'flex',minHeight:'100vh',background:C.bg,color:'#f3f3f8'}}>"""
-new_sync_and_score = """  },[])
-  const ROTINA_DEF_SHELL=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
-  const rotinaItensShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||ROTINA_DEF_SHELL}catch{return ROTINA_DEF_SHELL}})() as any[]
-  function diasUnicosShell(entries:any[]){return new Set(entries.map((e:any)=>e.data))}
-  function sequenciaShell(dias:Set<string>){
+# --- 6) Shell(): o anel 'Rotina' (adicionado no ultimo script) volta a ser 'Agua', agora com dado de verdade ---
+old_seq_fn = """function sequenciaRotinaShell(){
     let n=0
     const dt=new Date()
-    while(dias.has(dt.toISOString().slice(0,10))){n++;dt.setDate(dt.getDate()-1)}
+    while(pctDiaShell(dt.toISOString().slice(0,10))>=1){n++;dt.setDate(dt.getDate()-1)}
     return n
   }
-  function pctDiaShell(iso:string){
-    try{
-      const done=JSON.parse(localStorage.getItem(`dos_rotina_done_${iso}`)||'[]')
-      return rotinaItensShell.length>0?done.length/rotinaItensShell.length:0
-    }catch{return 0}
-  }
-  function sequenciaAguaShell(){
+  """
+new_seq_fn = """function sequenciaAguaShell(){
     let n=0
     const dt=new Date()
     try{
@@ -111,39 +107,21 @@ new_sync_and_score = """  },[])
     }catch{}
     return n
   }
-  const devEntriesShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})() as any[]
-  const treinosShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_treinos')||'[]')}catch{return []}})() as any[]
-  const leiturasShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_leituras')||'[]')}catch{return []}})() as any[]
-  const seqEspiritual=sequenciaShell(diasUnicosShell(devEntriesShell))
-  const seqTreino=sequenciaShell(diasUnicosShell(treinosShell))
-  const seqLeitura=sequenciaShell(diasUnicosShell(leiturasShell))
-  const seqAgua=sequenciaAguaShell()
-  const ultimos7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10)})
-  const anteriores7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return d.toISOString().slice(0,10)})
-  const pctSemanaAtual=ultimos7Shell.map(pctDiaShell)
-  const pctSemanaAnterior=anteriores7Shell.map(pctDiaShell)
-  const mediaAtual=Math.round(pctSemanaAtual.reduce((a,b)=>a+b,0)/7*100)
-  const mediaAnterior=Math.round(pctSemanaAnterior.reduce((a,b)=>a+b,0)/7*100)
-  const deltaSemana=mediaAtual-mediaAnterior
-  return(<div style={{display:'flex',minHeight:'100vh',background:C.bg,color:'#f3f3f8'}}>"""
-s = replace_once(s, old_sync, new_sync_and_score, "shell-score-real")
-applied.append("Shell(): score da semana e sequencias (Espiritual/Treino/Leitura/Agua) com dado real")
+  """
+s = replace_once(s, old_seq_fn, new_seq_fn, "shell-sequencia-agua-fn")
+applied.append("Shell(): funcao de sequencia de agua adicionada")
 
-old_score = "<span style={{fontSize:28,fontWeight:800}}>92%</span><span style={{fontSize:11,color:C.ok,fontWeight:700}}>▲ 8%</span>"
-new_score = "<span style={{fontSize:28,fontWeight:800}}>{mediaAtual}%</span><span style={{fontSize:11,color:deltaSemana>=0?C.ok:C.danger,fontWeight:700}}>{deltaSemana>=0?'▲':'▼'} {Math.abs(deltaSemana)}%</span>"
-s = replace_once(s, old_score, new_score, "shell-score-percent")
-applied.append("Shell(): % do score da semana com dado real")
+old_seq_call = "  const seqRotina=sequenciaRotinaShell()\n"
+new_seq_call = "  const seqAgua=sequenciaAguaShell()\n"
+s = replace_once(s, old_seq_call, new_seq_call, "shell-sequencia-agua-call")
+applied.append("Shell(): sequencia de agua calculada")
 
-old_bars = "{[60,80,70,90,75,85,40].map((h,i)=><span key={i} style={{flex:1,borderRadius:'3px 3px 2px 2px',height:`${h}%`,background:i<3?`linear-gradient(180deg,${C.ok},#15803d)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`}}/>)}"
-new_bars = "{pctSemanaAtual.map((p,i)=><span key={i} style={{flex:1,borderRadius:'3px 3px 2px 2px',height:`${Math.max(Math.round(p*100),3)}%`,background:i===6?`linear-gradient(180deg,${C.ok},#15803d)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`}}/>)}"
-s = replace_once(s, old_bars, new_bars, "shell-score-bars")
-applied.append("Shell(): barras do grafico semanal com dado real")
-
-old_streak = "{[{n:12,l:'Espiritual',c:C.pink},{n:8,l:'Treino',c:C.ok},{n:10,l:'Leitura',c:C.warn},{n:7,l:'Água',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}"
+old_streak = "{[{n:seqEspiritual,l:'Espiritual',c:C.pink},{n:seqTreino,l:'Treino',c:C.ok},{n:seqLeitura,l:'Leitura',c:C.warn},{n:seqRotina,l:'Rotina',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}"
 new_streak = "{[{n:seqEspiritual,l:'Espiritual',c:C.pink},{n:seqTreino,l:'Treino',c:C.ok},{n:seqLeitura,l:'Leitura',c:C.warn},{n:seqAgua,l:'Água',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}"
-s = replace_once(s, old_streak, new_streak, "shell-sequencia-real")
-applied.append("Shell(): sequencias (Espiritual/Treino/Leitura/Agua) com dado real")
+s = replace_once(s, old_streak, new_streak, "shell-sequencia-jsx")
+applied.append("Shell(): anel volta a mostrar 'Água' com sequencia real")
 
+# --- 7) Shell(): sincronizacao quase em tempo real (poucos segundos) em vez de a cada 5 minutos ---
 old_interval = """    sincronizarSnapshot()
     const t=setInterval(sincronizarSnapshot,5*60*1000)
     window.addEventListener('beforeunload',sincronizarSnapshot)
@@ -184,7 +162,3 @@ print("""
 alter policy "app_snapshot_all" on app_snapshot using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 alter policy "google_tokens_all" on google_tokens using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 """)
-print("Isso impede que alguem com a chave publica do site (que fica visivel no navegador) leia ou")
-print("escreva nessas 2 tabelas sem estar logada. As outras tabelas (tirzepatida_*, etc.) foram criadas")
-print("antes desta conversa - se quiser, me manda a lista de policies delas (Supabase > Authentication >")
-print("Policies) que eu reviso e mando a correcao junto.")

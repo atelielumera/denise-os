@@ -7,6 +7,23 @@ import { supabase } from './lib/supabase'
 
 const qc=new QueryClient()
 const C={bg:'#0a0a0f',s:'#16161f',s2:'#1c1c28',s3:'#22222f',line:'rgba(255,255,255,.07)',acc:'#8b5cf6',acc2:'#a78bfa',ok:'#34d399',water:'#38bdf8',warn:'#fbbf24',danger:'#f87171',pink:'#f472b6',teal:'#2dd4bf'}
+function hojeIsoAgua(){return new Date().toISOString().slice(0,10)}
+function lerAguaHoje(){
+  try{
+    const iso=hojeIsoAgua()
+    const log=JSON.parse(localStorage.getItem('dos_agua_log')||'{}')
+    if(typeof log[iso]==='number')return log[iso]
+    return Number(localStorage.getItem('dos_wat')||0)
+  }catch{return 0}
+}
+function salvarAguaHoje(ml:number){
+  try{
+    const iso=hojeIsoAgua()
+    const log=JSON.parse(localStorage.getItem('dos_agua_log')||'{}')
+    log[iso]=ml
+    localStorage.setItem('dos_agua_log',JSON.stringify(log))
+  }catch{}
+}
 const navItems=[['/', 'Home','🏠'],['/rotina','Minha Rotina','📋'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Exercícios','💪'],['/tirzepatida','Tirzepatida','💉'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/insights','Insights','💡'],['/relatorios','Relatórios','📊'],['/assistente','Luna','🌙'],['/config','Configurações','⚙️']]
 
 function AuthScreen(){
@@ -88,9 +105,26 @@ function Shell(){
       supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()}).then(()=>{})
     }
     sincronizarSnapshot()
-    const t=setInterval(sincronizarSnapshot,5*60*1000)
+    const t=setInterval(sincronizarSnapshot,30*1000)
+    let debounceSync:any=null
+    const origSetItem=localStorage.setItem.bind(localStorage)
+    localStorage.setItem=function(key:string,value:string){
+      origSetItem(key,value)
+      if(key.startsWith('dos_')){
+        if(debounceSync)clearTimeout(debounceSync)
+        debounceSync=setTimeout(sincronizarSnapshot,4000)
+      }
+    }
+    function sincronizarSeEscondeu(){if(document.hidden)sincronizarSnapshot()}
     window.addEventListener('beforeunload',sincronizarSnapshot)
-    return()=>{clearInterval(t);window.removeEventListener('beforeunload',sincronizarSnapshot)}
+    document.addEventListener('visibilitychange',sincronizarSeEscondeu)
+    return()=>{
+      clearInterval(t)
+      if(debounceSync)clearTimeout(debounceSync)
+      localStorage.setItem=origSetItem
+      window.removeEventListener('beforeunload',sincronizarSnapshot)
+      document.removeEventListener('visibilitychange',sincronizarSeEscondeu)
+    }
   },[])
   const ROTINA_DEF_SHELL=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
   const rotinaItensShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||ROTINA_DEF_SHELL}catch{return ROTINA_DEF_SHELL}})() as any[]
@@ -107,10 +141,13 @@ function Shell(){
       return rotinaItensShell.length>0?done.length/rotinaItensShell.length:0
     }catch{return 0}
   }
-  function sequenciaRotinaShell(){
+  function sequenciaAguaShell(){
     let n=0
     const dt=new Date()
-    while(pctDiaShell(dt.toISOString().slice(0,10))>=1){n++;dt.setDate(dt.getDate()-1)}
+    try{
+      const log=JSON.parse(localStorage.getItem('dos_agua_log')||'{}')
+      while((log[dt.toISOString().slice(0,10)]||0)>=2500){n++;dt.setDate(dt.getDate()-1)}
+    }catch{}
     return n
   }
   const devEntriesShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})() as any[]
@@ -119,7 +156,7 @@ function Shell(){
   const seqEspiritual=sequenciaShell(diasUnicosShell(devEntriesShell))
   const seqTreino=sequenciaShell(diasUnicosShell(treinosShell))
   const seqLeitura=sequenciaShell(diasUnicosShell(leiturasShell))
-  const seqRotina=sequenciaRotinaShell()
+  const seqAgua=sequenciaAguaShell()
   const ultimos7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10)})
   const anteriores7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return d.toISOString().slice(0,10)})
   const pctSemanaAtual=ultimos7Shell.map(pctDiaShell)
@@ -127,7 +164,7 @@ function Shell(){
   const mediaAtual=Math.round(pctSemanaAtual.reduce((a,b)=>a+b,0)/7*100)
   const mediaAnterior=Math.round(pctSemanaAnterior.reduce((a,b)=>a+b,0)/7*100)
   const deltaSemana=mediaAtual-mediaAnterior
-  return(<div style={{display:'flex',minHeight:'100vh',background:C.bg,color:'#f3f3f8'}}><aside style={{width:240,flexShrink:0,background:'linear-gradient(180deg,#101018,#0c0c12)',borderRight:`1px solid ${C.line}`,padding:'16px 12px',display:'flex',flexDirection:'column',gap:2,position:'sticky',top:0,height:'100vh',overflowY:'auto'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 6px 14px'}}><div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(145deg,#8b5cf6,#6d28d9)',display:'grid',placeItems:'center',fontSize:18}}>💜</div><div><div style={{fontWeight:800,fontSize:16}}>Denise OS</div><div style={{fontSize:10,color:'#7d7d90'}}>Seu sistema operacional de vida</div></div></div><nav style={{display:'flex',flexDirection:'column',gap:2}}>{navItems.map(([to,label,icon])=>(<NavLink key={to} to={to} end={to==='/'} style={({isActive})=>({display:'flex',alignItems:'center',gap:9,padding:'9px 10px',borderRadius:10,fontSize:13.5,fontWeight:500,color:isActive?'#fff':'rgba(255,255,255,.6)',background:isActive?'rgba(139,92,246,.15)':'transparent',textDecoration:'none',position:'relative'})}>{({isActive})=><>{isActive&&<span style={{position:'absolute',left:-12,top:8,bottom:8,width:3,borderRadius:'0 3px 3px 0',background:C.acc}}/>}<span style={{fontSize:14}}>{icon}</span>{label}</>}</NavLink>))}</nav><div style={{marginTop:14,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:8}}>Score da semana</div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28,fontWeight:800}}>{mediaAtual}%</span><span style={{fontSize:11,color:deltaSemana>=0?C.ok:C.danger,fontWeight:700}}>{deltaSemana>=0?'▲':'▼'} {Math.abs(deltaSemana)}%</span></div><div style={{display:'flex',gap:4,alignItems:'flex-end',height:40,marginTop:10}}>{pctSemanaAtual.map((p,i)=><span key={i} style={{flex:1,borderRadius:'3px 3px 2px 2px',height:`${Math.max(Math.round(p*100),3)}%`,background:i===6?`linear-gradient(180deg,${C.ok},#15803d)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`}}/>)}</div></div><div style={{marginTop:10,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:12}}>Sequência atual</div><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>{[{n:seqEspiritual,l:'Espiritual',c:C.pink},{n:seqTreino,l:'Treino',c:C.ok},{n:seqLeitura,l:'Leitura',c:C.warn},{n:seqRotina,l:'Rotina',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}</div></div><button onClick={()=>supabase.auth.signOut()} style={{marginTop:10,width:'100%',background:'transparent',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.5)',borderRadius:10,padding:'9px',fontSize:12.5,cursor:'pointer'}}>Sair</button></aside><div style={{flex:1,minWidth:0}}><Outlet/></div></div>)}
+  return(<div style={{display:'flex',minHeight:'100vh',background:C.bg,color:'#f3f3f8'}}><aside style={{width:240,flexShrink:0,background:'linear-gradient(180deg,#101018,#0c0c12)',borderRight:`1px solid ${C.line}`,padding:'16px 12px',display:'flex',flexDirection:'column',gap:2,position:'sticky',top:0,height:'100vh',overflowY:'auto'}}><div style={{display:'flex',alignItems:'center',gap:10,padding:'4px 6px 14px'}}><div style={{width:38,height:38,borderRadius:11,background:'linear-gradient(145deg,#8b5cf6,#6d28d9)',display:'grid',placeItems:'center',fontSize:18}}>💜</div><div><div style={{fontWeight:800,fontSize:16}}>Denise OS</div><div style={{fontSize:10,color:'#7d7d90'}}>Seu sistema operacional de vida</div></div></div><nav style={{display:'flex',flexDirection:'column',gap:2}}>{navItems.map(([to,label,icon])=>(<NavLink key={to} to={to} end={to==='/'} style={({isActive})=>({display:'flex',alignItems:'center',gap:9,padding:'9px 10px',borderRadius:10,fontSize:13.5,fontWeight:500,color:isActive?'#fff':'rgba(255,255,255,.6)',background:isActive?'rgba(139,92,246,.15)':'transparent',textDecoration:'none',position:'relative'})}>{({isActive})=><>{isActive&&<span style={{position:'absolute',left:-12,top:8,bottom:8,width:3,borderRadius:'0 3px 3px 0',background:C.acc}}/>}<span style={{fontSize:14}}>{icon}</span>{label}</>}</NavLink>))}</nav><div style={{marginTop:14,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:8}}>Score da semana</div><div style={{display:'flex',alignItems:'baseline',gap:8}}><span style={{fontSize:28,fontWeight:800}}>{mediaAtual}%</span><span style={{fontSize:11,color:deltaSemana>=0?C.ok:C.danger,fontWeight:700}}>{deltaSemana>=0?'▲':'▼'} {Math.abs(deltaSemana)}%</span></div><div style={{display:'flex',gap:4,alignItems:'flex-end',height:40,marginTop:10}}>{pctSemanaAtual.map((p,i)=><span key={i} style={{flex:1,borderRadius:'3px 3px 2px 2px',height:`${Math.max(Math.round(p*100),3)}%`,background:i===6?`linear-gradient(180deg,${C.ok},#15803d)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`}}/>)}</div></div><div style={{marginTop:10,background:C.s,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:11,color:'#7d7d90',textTransform:'uppercase' as const,letterSpacing:'.6px',marginBottom:12}}>Sequência atual</div><div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>{[{n:seqEspiritual,l:'Espiritual',c:C.pink},{n:seqTreino,l:'Treino',c:C.ok},{n:seqLeitura,l:'Leitura',c:C.warn},{n:seqAgua,l:'Água',c:C.water}].map(s=>(<div key={s.l} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><div style={{width:40,height:40,borderRadius:'50%',display:'grid',placeItems:'center',fontWeight:800,fontSize:13,boxShadow:`inset 0 0 0 2px ${s.c}`,color:s.c}}>{s.n}</div><small style={{fontSize:9,color:'#7d7d90'}}>{s.l}</small></div>))}</div></div><button onClick={()=>supabase.auth.signOut()} style={{marginTop:10,width:'100%',background:'transparent',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.5)',borderRadius:10,padding:'9px',fontSize:12.5,cursor:'pointer'}}>Sair</button></aside><div style={{flex:1,minWidth:0}}><Outlet/></div></div>)}
 function Home(){const navigate=useNavigate();
   const [tzSched,setTzSched]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
   const [tzBalance,setTzBalance]=React.useState(0)
@@ -154,7 +191,7 @@ function Home(){const navigate=useNavigate();
   function fmtIsoH(iso:string|null|undefined){if(!iso)return '—';return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
   const tzAutonomy=(()=>{const dDen=tzSched.denise?.planned_dose_mg||5;const dFla=tzSched.flavio?.planned_dose_mg||2.5;const iDen=tzSched.denise?.interval_days||5;const iFla=tzSched.flavio?.interval_days||7;const mgDay=dDen/iDen+dFla/iFla;return mgDay>0?Math.floor(tzBalance/mgDay):0})()
   const tzUltimaDenise=tzApps.find((a:any)=>a.person==='denise')
-  const h=new Date().getHours(),g=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';const today=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});const [wat,setWat]=React.useState(()=>Number(localStorage.getItem('dos_wat')||1800));const [prot,setProt]=React.useState(()=>Number(localStorage.getItem('dos_prot')||76));const [showFam,setShowFam]=React.useState(false);const {fam}=React.useContext(FamCtx);const day=new Date().getDay(),sd=(day>=1&&day<=5)?day:1;const addW=(ml:number)=>{const n=Math.min(wat+ml,4000);setWat(n);localStorage.setItem('dos_wat',String(n))};const addP=(gp:number)=>{const n=Math.min(prot+gp,200);setProt(n);localStorage.setItem('dos_prot',String(n))};
+  const h=new Date().getHours(),g=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';const today=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});const [wat,setWat]=React.useState(lerAguaHoje);const [prot,setProt]=React.useState(()=>Number(localStorage.getItem('dos_prot')||76));const [showFam,setShowFam]=React.useState(false);const {fam}=React.useContext(FamCtx);const day=new Date().getDay(),sd=(day>=1&&day<=5)?day:1;const addW=(ml:number)=>{const n=Math.min(wat+ml,4000);setWat(n);salvarAguaHoje(n)};const addP=(gp:number)=>{const n=Math.min(prot+gp,200);setProt(n);localStorage.setItem('dos_prot',String(n))};
   const extrasSaude=(()=>{try{return JSON.parse(localStorage.getItem('dos_saude_extra')||'[]')}catch{return []}})() as any[]
   const ultimoSaude=extrasSaude[0]
   const ROTINA_DEF_HOME=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
@@ -190,6 +227,8 @@ function Home(){const navigate=useNavigate();
   const resumoMedia=Math.round((saudePct+exPct+Math.min(100,Math.round(prot/120*100))+hidPct+espPct+trabPct)/6)
   const leiturasHome=(()=>{try{return JSON.parse(localStorage.getItem('dos_leituras')||'[]')}catch{return []}})() as any[]
   const leituraHoje=leiturasHome.some((l:any)=>l.data===hojeIsoHome)
+  const livroAtualHome=(()=>{try{return JSON.parse(localStorage.getItem('dos_livro_atual')||'null')}catch{return null}})() as any
+  const livroPctHome=livroAtualHome&&livroAtualHome.totalPaginas>0?Math.min(100,Math.round(livroAtualHome.paginaAtual/livroAtualHome.totalPaginas*100)):0
   const lembretes:[string,string,string][]=[]
   if(wat<2500)lembretes.push(['💧','Beber mais água',`${((2500-wat)/1000).toFixed(1).replace('.',',')} L restantes`])
   if(tzSched.denise?.next_application_date)lembretes.push(['💉','Tirzepatida · você',fmtIsoH(tzSched.denise.next_application_date)])
@@ -201,7 +240,7 @@ function Home(){const navigate=useNavigate();
   <Lrow icon="📊" name="Intestino" val={ultimoSaude.intestino||'—'} ok={ultimoSaude.intestino==='Regular'}/>
   <Lrow icon="😊" name="Humor" val={ultimoSaude.humor?`${ultimoSaude.humor}/10`:'—'}/>
   <Lrow icon="⚡" name="Energia" val={ultimoSaude.energia?`${ultimoSaude.energia}/10`:'—'}/>
-</>:<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum registro hoje ainda.</div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Exercícios" action={<NavLink to="/exercicios" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><div style={{display:'flex',alignItems:'center',gap:12,marginBottom:11}}><Ring pct={exPct} color={C.teal} size={64}/><div><div style={{fontSize:21,fontWeight:800}}>{treinosSemana.length} / {diasTreinoPlanejados}</div><small style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>treinos esta semana</small></div></div><button onClick={()=>navigate('/exercicios')} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>▶ Iniciar treino</button></Card></div><div style={{gridColumn:'span 3'}}><Card title="Família" action={<button onClick={()=>setShowFam(true)} style={{fontSize:12,color:C.acc2,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.2)',padding:'5px 9px',borderRadius:9,cursor:'pointer'}}>✏️ Editar rotina</button>}>{(['domi','derick'] as const).map(k=>{const nome=k==='domi'?'Domi':'Derick';const pk=fam[k].pk[sd]||'—';return(<div key={k} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 2px',borderBottom:`1px solid ${C.line}`}}><Avatar id={k} label={nome[0]} size={40} radius={11}/><div><div style={{fontWeight:700,fontSize:13.5}}>{nome}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Buscar · {pk}</div></div></div>)})}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Espiritual" action={<NavLink to="/espiritual" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><Lrow icon="☀️" name="Devocional" val={devHoje?'Concluído':'Pendente'} ok={devHoje}/><Lrow icon="📖" name="Registros" val={`${devEntries.length} no total`}/><div style={{display:'flex',alignItems:'center',gap:6,marginTop:11,fontSize:12.5,color:C.warn}}>🔥 Sequência: {devSequencia} dia{devSequencia===1?'':'s'}</div></Card></div><div style={{gridColumn:'span 3'}}><Card title="Desenvolvimento" action={<NavLink to="/desenvolvimento" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><div style={{fontWeight:700,fontSize:14,marginBottom:4}}>Hábitos Atômicos</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:10}}>James Clear · 45%</div><div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden'}}><div style={{height:'100%',width:'45%',borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div></Card></div><div style={{gridColumn:'span 3'}}><Card title="Lembretes">{lembretes.length>0?lembretes.map(([icon,name,val],i)=>(<Lrow key={i} icon={icon} name={name} val={val}/>)):<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum lembrete pendente 🎉</div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Luna"><div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'12px 13px',fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.5,marginBottom:11}}>{g}, Denise! ☀️ Estoque tirzepatida: {tzBalance} mg. Próxima: {fmtIsoH(tzSched.denise?.next_application_date)}. Vamos juntas? 💜</div><NavLink to="/assistente" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,textDecoration:'none'}}>Falar com a Luna</NavLink></Card></div></div><div style={{position:'fixed',bottom:0,left:240,right:0,background:'rgba(12,12,18,.92)',backdropFilter:'blur(12px)',borderTop:`1px solid ${C.line}`,padding:'11px 22px',display:'flex',gap:8,alignItems:'center',overflowX:'auto',zIndex:40}}><span style={{fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0,marginRight:4}}>⚡ Ações rápidas</span><button onClick={()=>addW(250)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#0ea5e9,#0369a1)',color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>💧 +250 ml Água</button><button onClick={()=>addP(20)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#16a34a,#15803d)',color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>🥩 +20 g Proteína</button>{[['⚖️ Peso','/saude'],['😊 Humor','/saude'],['📊 Intestino','/saude'],['💪 Treino','/exercicios'],['🍽️ Refeição','/alimentacao'],['💉 Aplicação','/tirzepatida']].map(([l,rota])=>(<button key={l} onClick={()=>navigate(rota)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:`1px solid ${C.line}`,background:C.s,color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>{l}</button>))}</div></div>)}
+</>:<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum registro hoje ainda.</div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Exercícios" action={<NavLink to="/exercicios" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><div style={{display:'flex',alignItems:'center',gap:12,marginBottom:11}}><Ring pct={exPct} color={C.teal} size={64}/><div><div style={{fontSize:21,fontWeight:800}}>{treinosSemana.length} / {diasTreinoPlanejados}</div><small style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>treinos esta semana</small></div></div><button onClick={()=>navigate('/exercicios')} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>▶ Iniciar treino</button></Card></div><div style={{gridColumn:'span 3'}}><Card title="Família" action={<button onClick={()=>setShowFam(true)} style={{fontSize:12,color:C.acc2,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.2)',padding:'5px 9px',borderRadius:9,cursor:'pointer'}}>✏️ Editar rotina</button>}>{(['domi','derick'] as const).map(k=>{const nome=k==='domi'?'Domi':'Derick';const pk=fam[k].pk[sd]||'—';return(<div key={k} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 2px',borderBottom:`1px solid ${C.line}`}}><Avatar id={k} label={nome[0]} size={40} radius={11}/><div><div style={{fontWeight:700,fontSize:13.5}}>{nome}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Buscar · {pk}</div></div></div>)})}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Espiritual" action={<NavLink to="/espiritual" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><Lrow icon="☀️" name="Devocional" val={devHoje?'Concluído':'Pendente'} ok={devHoje}/><Lrow icon="📖" name="Registros" val={`${devEntries.length} no total`}/><div style={{display:'flex',alignItems:'center',gap:6,marginTop:11,fontSize:12.5,color:C.warn}}>🔥 Sequência: {devSequencia} dia{devSequencia===1?'':'s'}</div></Card></div><div style={{gridColumn:'span 3'}}><Card title="Desenvolvimento" action={<NavLink to="/desenvolvimento" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}>{livroAtualHome&&livroAtualHome.titulo?<><div style={{fontWeight:700,fontSize:14,marginBottom:4}}>{livroAtualHome.titulo}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:10}}>{livroAtualHome.autor||'Autor não informado'} · {livroPctHome}%</div><div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden'}}><div style={{height:'100%',width:`${livroPctHome}%`,borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div></>:<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum livro em andamento. <NavLink to="/desenvolvimento" style={{color:C.acc2}}>Adicionar</NavLink></div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Lembretes">{lembretes.length>0?lembretes.map(([icon,name,val],i)=>(<Lrow key={i} icon={icon} name={name} val={val}/>)):<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum lembrete pendente 🎉</div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Luna"><div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'12px 13px',fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.5,marginBottom:11}}>{g}, Denise! ☀️ Estoque tirzepatida: {tzBalance} mg. Próxima: {fmtIsoH(tzSched.denise?.next_application_date)}. Vamos juntas? 💜</div><NavLink to="/assistente" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,textDecoration:'none'}}>Falar com a Luna</NavLink></Card></div></div><div style={{position:'fixed',bottom:0,left:240,right:0,background:'rgba(12,12,18,.92)',backdropFilter:'blur(12px)',borderTop:`1px solid ${C.line}`,padding:'11px 22px',display:'flex',gap:8,alignItems:'center',overflowX:'auto',zIndex:40}}><span style={{fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0,marginRight:4}}>⚡ Ações rápidas</span><button onClick={()=>addW(250)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#0ea5e9,#0369a1)',color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>💧 +250 ml Água</button><button onClick={()=>addP(20)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#16a34a,#15803d)',color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>🥩 +20 g Proteína</button>{[['⚖️ Peso','/saude'],['😊 Humor','/saude'],['📊 Intestino','/saude'],['💪 Treino','/exercicios'],['🍽️ Refeição','/alimentacao'],['💉 Aplicação','/tirzepatida']].map(([l,rota])=>(<button key={l} onClick={()=>navigate(rota)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:`1px solid ${C.line}`,background:C.s,color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>{l}</button>))}</div></div>)}
 function Rotina(){
   type RItem={t:string,n:string,cat:string}
   const DEF:RItem[]=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
@@ -972,14 +1011,14 @@ function Saude(){
 
 function Alimentacao(){
   type Ref={nome:string,prot:number,hora:string}
-  const [wat,setWat]=React.useState(()=>Number(localStorage.getItem('dos_wat')||0))
+  const [wat,setWat]=React.useState(lerAguaHoje)
   const [prot,setProt]=React.useState(()=>Number(localStorage.getItem('dos_prot')||0))
   const [refs,setRefs]=React.useState<Ref[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_refs')||'[]')}catch{return []}})
   const [nomef,setNomef]=React.useState('')
   const [protf,setProtf]=React.useState('')
   const [saved,setSaved]=React.useState(false)
   const metaP=120,metaW=2500
-  const addW=(ml:number)=>{const n=Math.min(wat+ml,6000);setWat(n);localStorage.setItem('dos_wat',String(n))}
+  const addW=(ml:number)=>{const n=Math.min(wat+ml,6000);setWat(n);salvarAguaHoje(n)}
   const addP=(g:number)=>{const n=Math.min(prot+g,300);setProt(n);localStorage.setItem('dos_prot',String(n))}
   function registrar(){
     if(!nomef)return
@@ -1053,7 +1092,7 @@ function Alimentacao(){
             <span style={{fontWeight:700,color:C.ok}}>{refs.reduce((a,r)=>a+r.prot,0)}g</span>
           </div>
         </div>}
-        {refs.length>0&&<button onClick={()=>{if(window.confirm('Limpar histórico de hoje?')){setRefs([]);setWat(0);setProt(0);localStorage.removeItem('dos_refs');localStorage.removeItem('dos_wat');localStorage.removeItem('dos_prot')}}} style={{width:'100%',background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.2)',color:C.danger,borderRadius:10,padding:'9px',fontSize:12,cursor:'pointer',marginTop:12}}>Limpar dia</button>}
+        {refs.length>0&&<button onClick={()=>{if(window.confirm('Limpar histórico de hoje?')){setRefs([]);setWat(0);setProt(0);localStorage.removeItem('dos_refs');salvarAguaHoje(0);localStorage.removeItem('dos_prot')}}} style={{width:'100%',background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.2)',color:C.danger,borderRadius:10,padding:'9px',fontSize:12,cursor:'pointer',marginTop:12}}>Limpar dia</button>}
       </Card>
     </div>
   </div>)}
@@ -1596,7 +1635,7 @@ function Relatorios(){
   const exDiasR=diasComEntradaUltimos(treinosR,periodoDias)
   const espPctR=Math.min(100,Math.round(espDiasR/periodoDias*100))
   const exPctR=Math.min(100,Math.round(exDiasR/periodoDias*100))
-  const watR=Number(localStorage.getItem('dos_wat')||0)
+  const watR=lerAguaHoje()
   const protR=Number(localStorage.getItem('dos_prot')||0)
   const hidPctR=Math.min(100,Math.round(watR/2500*100))
   const aliPctR=Math.min(100,Math.round(protR/120*100))
