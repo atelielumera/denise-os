@@ -1,5 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 
+function horaLocalBR(dataISO) {
+  const partes = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' }).formatToParts(new Date(dataISO))
+  const h = partes.find((p) => p.type === 'hour')?.value || '00'
+  const m = partes.find((p) => p.type === 'minute')?.value || '00'
+  return `${h}:${m}`
+}
+
+const GOOGLE_CLIENT_ID = '386247436984-g828bjjges33iherifnlbk18cfe0u1mj.apps.googleusercontent.com'
+
 export function getEvoConfig() {
   const baseUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '')
   const apiKey = process.env.EVOLUTION_API_KEY
@@ -58,6 +67,38 @@ export async function askLuna(systemPrompt, userContent) {
   return data.content?.find((b) => b.type === 'text')?.text || 'Desculpa, não consegui gerar isso agora.'
 }
 
+export async function getGoogleAccessToken(supabase) {
+  const { data: row } = await supabase.from('google_tokens').select('*').eq('id', 'denise').maybeSingle()
+  if (!row || !row.refresh_token) return null
+  if (row.access_token && row.expires_at && Number(row.expires_at) - 60000 > Date.now()) return row.access_token
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (!clientSecret) return null
+  const tokenResp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: GOOGLE_CLIENT_ID, client_secret: clientSecret, refresh_token: row.refresh_token, grant_type: 'refresh_token' })
+  })
+  const tokenData = await tokenResp.json()
+  if (!tokenResp.ok || !tokenData.access_token) return null
+  const expiresAt = Date.now() + (tokenData.expires_in || 3600) * 1000
+  await supabase.from('google_tokens').upsert({ id: 'denise', access_token: tokenData.access_token, expires_at: expiresAt, updated_at: new Date().toISOString() })
+  return tokenData.access_token
+}
+
+export async function fetchGoogleCalendarEventos(supabase, timeMinIso, timeMaxIso) {
+  const accessToken = await getGoogleAccessToken(supabase)
+  if (!accessToken) return []
+  const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events')
+  url.searchParams.set('timeMin', timeMinIso)
+  url.searchParams.set('timeMax', timeMaxIso)
+  url.searchParams.set('singleEvents', 'true')
+  url.searchParams.set('orderBy', 'startTime')
+  const resp = await fetch(url.toString(), { headers: { authorization: `Bearer ${accessToken}` } })
+  if (!resp.ok) return []
+  const data = await resp.json()
+  return Array.isArray(data.items) ? data.items : []
+}
+
 export function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -71,10 +112,11 @@ export async function buildLunaContext() {
   const supabase = getSupabaseAdmin()
   if (!supabase) return { data_hoje: hojeIso, tirzepatida: null }
 
-  const [{ data: sched }, { data: bal }, { data: snap }] = await Promise.all([
+  const [{ data: sched }, { data: bal }, { data: snap }, eventosGoogleAoVivo] = await Promise.all([
     supabase.from('tirzepatida_schedule').select('*'),
     supabase.from('tirzepatida_stock_balance').select('*').maybeSingle(),
-    supabase.from('app_snapshot').select('data').eq('id', 'denise').maybeSingle()
+    supabase.from('app_snapshot').select('data').eq('id', 'denise').maybeSingle(),
+    fetchGoogleCalendarEventos(supabase, new Date().toISOString(), new Date(Date.now() + 7 * 86400000).toISOString()).catch(() => [])
   ])
 
   const tzMap = {}
@@ -84,7 +126,7 @@ export async function buildLunaContext() {
 
   const d = snap?.data || {}
   const agendaLocal = Array.isArray(d.dos_agenda) ? d.dos_agenda : []
-  const agendaGoogle = Array.isArray(d.dos_google_events_cache) ? d.dos_google_events_cache : []
+  const agendaGoogle = eventosGoogleAoVivo.length > 0 ? eventosGoogleAoVivo : (Array.isArray(d.dos_google_events_cache) ? d.dos_google_events_cache : [])
   const rotinaItens = Array.isArray(d.dos_rotina) ? d.dos_rotina : []
   const rotinaDoneHoje = Array.isArray(d[`dos_rotina_done_${hojeIso}`]) ? d[`dos_rotina_done_${hojeIso}`] : []
   const casaItens = Array.isArray(d.dos_casa_items) ? d.dos_casa_items : []
@@ -104,7 +146,7 @@ export async function buildLunaContext() {
     ...agendaLocal.map((e) => ({ data: e.data, hora: e.hora, titulo: e.nome, origem: 'app' })),
     ...agendaGoogle.map((ev) => ({
       data: (ev.start?.dateTime || ev.start?.date || '').slice(0, 10),
-      hora: ev.start?.dateTime ? new Date(ev.start.dateTime).toISOString().slice(11, 16) : '',
+      hora: ev.start?.dateTime ? horaLocalBR(ev.start.dateTime) : '',
       titulo: ev.summary || '(sem titulo)',
       origem: 'google_calendar'
     }))
