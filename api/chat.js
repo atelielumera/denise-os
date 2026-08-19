@@ -71,7 +71,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 600,
+        max_tokens: 4096,
+        output_config: { effort: 'low' },
         system: systemPrompt,
         messages: [...historico, { role: 'user', content: userContent }]
       })
@@ -81,7 +82,11 @@ export default async function handler(req, res) {
       res.status(502).json({ error: data?.error?.message || 'Erro ao consultar a IA.' })
       return
     }
-    const reply = data.content?.find(b => b.type === 'text')?.text || 'Desculpa, nao consegui responder agora.'
+    const reply = data.content?.find(b => b.type === 'text')?.text
+    if (!reply) {
+      res.status(502).json({ error: 'Luna nao gerou texto (stop_reason: ' + (data.stop_reason || '?') + ')' })
+      return
+    }
     res.status(200).json({ reply, transcript: audio ? userText : undefined })
   } catch (err) {
     res.status(500).json({ error: 'Falha ao falar com a Luna: ' + (err?.message || 'erro desconhecido') })

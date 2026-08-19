@@ -76,14 +76,17 @@ export async function askLuna(systemPrompt, userContent) {
     headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-5',
-      max_tokens: 800,
+      max_tokens: 4096,
+      output_config: { effort: 'low' },
       system: systemPrompt,
       messages: [{ role: 'user', content: userContent }]
     })
   })
   const data = await anthropicResp.json()
   if (!anthropicResp.ok) throw new Error(data?.error?.message || 'Erro ao consultar a IA.')
-  return data.content?.find((b) => b.type === 'text')?.text || 'Desculpa, não consegui gerar isso agora.'
+  const texto = data.content?.find((b) => b.type === 'text')?.text
+  if (!texto) throw new Error('Luna nao gerou texto (stop_reason: ' + (data.stop_reason || '?') + ')')
+  return texto
 }
 
 export async function getGoogleAccessToken(supabase) {
