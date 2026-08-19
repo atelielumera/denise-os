@@ -1756,6 +1756,20 @@ function Assistente(){
   React.useEffect(()=>{
     try{localStorage.setItem(LUNA_CHAT_KEY,JSON.stringify(msgs.slice(-40)))}catch{}
   },[msgs])
+  React.useEffect(()=>{
+    (async()=>{
+      try{
+        const local=JSON.parse(localStorage.getItem(LUNA_CHAT_KEY)||'null')
+        if(Array.isArray(local)&&local.length>1)return
+        const {data:snap}=await supabase.from('app_snapshot').select('data').eq('id','denise').maybeSingle()
+        const remoto=snap?.data?.[LUNA_CHAT_KEY]
+        if(Array.isArray(remoto)&&remoto.length>1){
+          setMsgs(remoto)
+          localStorage.setItem(LUNA_CHAT_KEY,JSON.stringify(remoto))
+        }
+      }catch{}
+    })()
+  },[])
   function novaConversa(){setMsgs(saudacaoInicial())}
   const [inp,setInp]=React.useState('')
   const [sending,setSending]=React.useState(false)
