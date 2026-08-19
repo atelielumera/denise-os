@@ -67,7 +67,8 @@ export default async function handler(req, res) {
     const reply = await askLuna(systemPrompt, userContent)
     await sendWhatsappText(number, reply)
     res.status(200).json({ ok: true })
-  } catch {
+  } catch (err) {
+    console.error('Erro no webhook do WhatsApp:', err)
     res.status(200).json({ ok: true })
   }
 }

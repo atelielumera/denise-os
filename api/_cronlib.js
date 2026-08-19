@@ -34,11 +34,15 @@ export function getEvoConfig() {
 export async function sendWhatsappText(number, text) {
   const { baseUrl, apiKey, instance } = getEvoConfig()
   if (!baseUrl || !apiKey) throw new Error('Evolution API nao configurada.')
-  await fetch(`${baseUrl}/message/sendText/${instance}`, {
+  const resp = await fetch(`${baseUrl}/message/sendText/${instance}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', apikey: apiKey },
     body: JSON.stringify({ number, text })
   })
+  if (!resp.ok) {
+    const corpo = await resp.text().catch(() => '')
+    throw new Error(`Falha ao enviar WhatsApp (status ${resp.status}): ${corpo.slice(0, 300)}`)
+  }
 }
 
 export async function transcribeAudio(base64, mediaType) {
@@ -194,7 +198,9 @@ export async function buildLunaContext() {
       const bruto = d.dos_medicamentos || {}
       const comDias = {}
       Object.keys(bruto).forEach((kid) => {
-        comDias[kid] = (bruto[kid] || []).map((m) => ({ ...m, dias_desde_registro: diasDesdeRegistroBR(m.data) }))
+        comDias[kid] = (bruto[kid] || [])
+          .filter((m) => !m.ate || m.ate >= hojeIso)
+          .map((m) => ({ ...m, dias_desde_registro: diasDesdeRegistroBR(m.data) }))
       })
       return comDias
     })(),
