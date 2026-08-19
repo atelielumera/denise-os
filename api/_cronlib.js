@@ -169,8 +169,18 @@ export async function buildLunaContext() {
 
   const contasVencendo = casaItens.filter((i) => i.cat === 'Contas' && i.venc && !i.done && i.venc >= hojeIso && i.venc <= em7diasIso)
 
+  const aguaLog = d.dos_agua_log || {}
+  const aguaHojeMl = Number(aguaLog[hojeIso] || 0)
+
+  const BUSCA_DOMI_POR_DIA = { 1: { busca: '12:50', sair: '12:35' }, 2: { busca: '11:40', sair: '11:25' }, 3: { busca: '12:50', sair: '12:35' }, 4: { busca: '11:40', sair: '11:25' }, 5: { busca: '13:00', sair: '12:45' } }
+  const diaSemanaHoje = new Date(hojeIso + 'T12:00:00-03:00').getDay()
+  const buscaDomiHoje = BUSCA_DOMI_POR_DIA[diaSemanaHoje] || null
+
   return {
     data_hoje: hojeIso,
+    agua_hoje_ml: aguaHojeMl,
+    meta_agua_ml: 2500,
+    busca_domi_hoje: buscaDomiHoje,
     ultima_sincronizacao_do_app: snap?.data ? d.__updated_at || null : null,
     tirzepatida: Object.keys(tzMap).length > 0 ? { estoque_atual_mg: Number(bal?.current_balance_mg ?? 0), denise: tzMap.denise || null, flavio: tzMap.flavio || null } : null,
     sequencia_treinos_dias: sequencia(diasUnicos(treinos)),

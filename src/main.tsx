@@ -254,6 +254,7 @@ function Rotina(){
       {t:'12:00',n:'Chá hortelã + erva-doce (digestivo)',cat:'Alimentação'},
       {t:'15:00',n:'Chá hibisco + cavalinha',cat:'Alimentação'},
       {t:'20:30',n:'Chá camomila + melissa',cat:'Alimentação'},
+      {t:'11:25',n:'Buscar Domi (sair 15 min antes) — Seg/Qua 12:50 · Ter/Qui 11:40 · Sex 13:00',cat:'Família'},
     ]
     setItems(prev=>{
       const nomes=new Set(prev.map(it=>it.n))

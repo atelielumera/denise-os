@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   try {
     const context = await buildLunaContext()
     const systemPrompt = lunaSystemPrompt('Você está enviando o resumo da noite (20:00) pelo WhatsApp.') + '\n\nContexto atual (dados reais da Denise, agora):\n' + JSON.stringify(context, null, 2)
-    const pedido = 'Escreva a mensagem de encerramento do dia da Denise. Comece com "Boa noite, Denise 🌙" e mostre: o que foi feito hoje (itens da rotina marcados como feito hoje, treino/leitura/devocional se houver registro de hoje), e o que fica pendente para amanhã (itens da agenda de amanhã, itens da rotina de hoje que não foram feitos). Se uma categoria estiver vazia, não mencione ela. Termine com uma frase curta e acolhedora. Formato de WhatsApp, emojis com moderação, sem markdown de negrito.'
+    const pedido = 'Escreva a mensagem de encerramento do dia da Denise. Comece com "Boa noite, Denise 🌙" e mostre: quanto de água ela bebeu hoje (agua_hoje_ml) comparado à meta (meta_agua_ml) - elogie se bateu a meta, lembre com carinho se ainda não bateu -, o que foi feito hoje (itens da rotina marcados como feito hoje, treino/leitura/devocional se houver registro de hoje), e o que fica pendente para amanhã (itens da agenda de amanhã, itens da rotina de hoje que não foram feitos). Se uma categoria estiver vazia, não mencione ela. Termine com uma frase curta e acolhedora. Formato de WhatsApp, emojis com moderação, sem markdown de negrito.'
     const texto = await askLuna(systemPrompt, [{ type: 'text', text: pedido }])
     await sendWhatsappText(numero, texto)
     res.status(200).json({ ok: true })
