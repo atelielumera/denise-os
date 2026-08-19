@@ -255,6 +255,8 @@ function Rotina(){
       {t:'15:00',n:'Chá hibisco + cavalinha',cat:'Alimentação'},
       {t:'20:30',n:'Chá camomila + melissa',cat:'Alimentação'},
       {t:'11:25',n:'Buscar Domi (sair 15 min antes) — Seg/Qua 12:50 · Ter/Qui 11:40 · Sex 13:00',cat:'Família'},
+      {t:'08:00',n:'Skincare manhã: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Filtro Solar La Roche-Posay, Cicaplast',cat:'Saúde'},
+      {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Cicaplast + extra do dia — Seg/Qua/Sex: Vitacid · Ter/Qui/Sáb: Effaclar Duo+M · Domingo: sem extra',cat:'Saúde'},
     ]
     setItems(prev=>{
       const nomes=new Set(prev.map(it=>it.n))
