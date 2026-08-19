@@ -1744,7 +1744,19 @@ function Assistente(){
     setTzSched(map)
     setTzBalance(Number(bal?.current_balance_mg??0))
   })()},[])
-  const [msgs,setMsgs]=React.useState<{me:boolean,t:string}[]>([{me:false,t:`${g}, Denise! Sou a Luna 💜 Pode falar comigo por texto, áudio ou mandar uma foto. Como posso ajudar?`}])
+  const LUNA_CHAT_KEY='dos_luna_chat'
+  const saudacaoInicial=()=>[{me:false,t:`${g}, Denise! Sou a Luna 💜 Pode falar comigo por texto, áudio ou mandar uma foto. Como posso ajudar?`}]
+  const [msgs,setMsgs]=React.useState<{me:boolean,t:string}[]>(()=>{
+    try{
+      const salvo=JSON.parse(localStorage.getItem(LUNA_CHAT_KEY)||'null')
+      if(Array.isArray(salvo)&&salvo.length>0)return salvo
+    }catch{}
+    return saudacaoInicial()
+  })
+  React.useEffect(()=>{
+    try{localStorage.setItem(LUNA_CHAT_KEY,JSON.stringify(msgs.slice(-40)))}catch{}
+  },[msgs])
+  function novaConversa(){setMsgs(saudacaoInicial())}
   const [inp,setInp]=React.useState('')
   const [sending,setSending]=React.useState(false)
   const [pendingImg,setPendingImg]=React.useState<{mediaType:string,base64:string,preview:string}|null>(null)
@@ -1856,8 +1868,10 @@ function Assistente(){
   }
 
   return(<div style={{padding:'24px 28px'}}>
-    <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Luna</h1>
-    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Sua assistente pessoal — entende texto, áudio e imagem.</p>
+    <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,marginBottom:20}}>
+      <div><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Luna</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13}}>Sua assistente pessoal — entende texto, áudio e imagem.</p></div>
+      <button onClick={novaConversa} style={{background:C.s2,border:`1px solid ${C.line}`,color:'rgba(255,255,255,.7)',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap' as const}}>+ Nova conversa</button>
+    </div>
     <div style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18,display:'flex',flexDirection:'column' as const,height:'60vh'}}>
       <div style={{flex:1,overflowY:'auto' as const,display:'flex',flexDirection:'column' as const,gap:12,paddingBottom:12}}>
         {msgs.map((m,i)=>(<div key={i} style={{maxWidth:'80%',padding:'11px 14px',borderRadius:14,fontSize:13.5,lineHeight:1.5,alignSelf:m.me?'flex-end':'flex-start',background:m.me?`linear-gradient(135deg,${C.acc},#7c3aed)`:'rgba(255,255,255,.06)',border:m.me?'none':`1px solid ${C.line}`,whiteSpace:'pre-wrap' as const}}>{m.t}</div>))}

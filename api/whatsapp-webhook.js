@@ -24,10 +24,14 @@ export default async function handler(req, res) {
       res.status(200).json({ ok: true })
       return
     }
-    const number = remoteJid.split('@')[0]
+    const number = remoteJid.split('@')[0].split(':')[0]
 
+    function normalizarNumeroBR(n) {
+      const d = String(n || '').replace(/\D/g, '')
+      return (d.length === 13 && d.startsWith('55') && d[4] === '9') ? d.slice(0, 4) + d.slice(5) : d
+    }
     const allowed = (process.env.EVOLUTION_ALLOWED_NUMBERS || '').split(',').map((s) => s.trim()).filter(Boolean)
-    if (allowed.length && !allowed.includes(number)) {
+    if (allowed.length && !allowed.map(normalizarNumeroBR).includes(normalizarNumeroBR(number))) {
       res.status(200).json({ ok: true })
       return
     }
@@ -58,7 +62,7 @@ export default async function handler(req, res) {
     userContent.push({ type: 'text', text: userText || 'A Denise enviou uma imagem sem legenda pelo WhatsApp. Comente o que você vê e pergunte no que pode ajudar.' })
 
     const context = await buildLunaContext()
-    const systemPrompt = lunaSystemPrompt('Você está respondendo agora pelo WhatsApp, com respostas curtas (2 a 5 frases).') + '\n\nContexto atual (dados reais da Denise, agora):\n' + JSON.stringify(context, null, 2)
+    const systemPrompt = lunaSystemPrompt('Você está respondendo agora pelo WhatsApp, com respostas curtas (2 a 5 frases). Responda apenas o que a Denise perguntou ou comentou agora - não puxe lembretes, contas, agenda ou avisos por conta própria. Se ela só cumprimentar ou bater papo, cumprimente de volta e pergunte como pode ajudar, sem listar informações do contexto.') + '\n\nContexto atual (dados reais da Denise, agora):\n' + JSON.stringify(context, null, 2)
 
     const reply = await askLuna(systemPrompt, userContent)
     await sendWhatsappText(number, reply)
