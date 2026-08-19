@@ -232,7 +232,7 @@ function Home(){const navigate=useNavigate();
   <Lrow icon="⚡" name="Energia" val={ultimoSaude.energia?`${ultimoSaude.energia}/10`:'—'}/>
 </>:<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum registro hoje ainda.</div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Exercícios" action={<NavLink to="/exercicios" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><div style={{display:'flex',alignItems:'center',gap:12,marginBottom:11}}><Ring pct={exPct} color={C.teal} size={64}/><div><div style={{fontSize:21,fontWeight:800}}>{treinosSemana.length} / {diasTreinoPlanejados}</div><small style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>treinos esta semana</small></div></div><button onClick={()=>navigate('/exercicios')} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>▶ Iniciar treino</button></Card></div><div style={{gridColumn:'span 3'}}><Card title="Família" action={<button onClick={()=>setShowFam(true)} style={{fontSize:12,color:C.acc2,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.2)',padding:'5px 9px',borderRadius:9,cursor:'pointer'}}>✏️ Editar rotina</button>}>{(['domi','derick'] as const).map(k=>{const nome=k==='domi'?'Domi':'Derick';const pk=fam[k].pk[sd]||'—';return(<div key={k} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 2px',borderBottom:`1px solid ${C.line}`}}><Avatar id={k} label={nome[0]} size={40} radius={11}/><div><div style={{fontWeight:700,fontSize:13.5}}>{nome}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Buscar · {pk}</div></div></div>)})}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Espiritual" action={<NavLink to="/espiritual" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}><Lrow icon="☀️" name="Devocional" val={devHoje?'Concluído':'Pendente'} ok={devHoje}/><Lrow icon="📖" name="Registros" val={`${devEntries.length} no total`}/><div style={{display:'flex',alignItems:'center',gap:6,marginTop:11,fontSize:12.5,color:C.warn}}>🔥 Sequência: {devSequencia} dia{devSequencia===1?'':'s'}</div></Card></div><div style={{gridColumn:'span 3'}}><Card title="Desenvolvimento" action={<NavLink to="/desenvolvimento" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver mais</NavLink>}>{livroAtualHome&&livroAtualHome.titulo?<><div style={{fontWeight:700,fontSize:14,marginBottom:4}}>{livroAtualHome.titulo}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:10}}>{livroAtualHome.autor||'Autor não informado'} · {livroPctHome}%</div><div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden'}}><div style={{height:'100%',width:`${livroPctHome}%`,borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div></>:<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum livro em andamento. <NavLink to="/desenvolvimento" style={{color:C.acc2}}>Adicionar</NavLink></div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Lembretes">{lembretes.length>0?lembretes.map(([icon,name,val],i)=>(<Lrow key={i} icon={icon} name={name} val={val}/>)):<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum lembrete pendente 🎉</div>}</Card></div><div style={{gridColumn:'span 3'}}><Card title="Luna"><div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'12px 13px',fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.5,marginBottom:11}}>{g}, Denise! ☀️ Estoque tirzepatida: {tzBalance} mg. Próxima: {fmtIsoH(tzSched.denise?.next_application_date)}. Vamos juntas? 💜</div><NavLink to="/assistente" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,textDecoration:'none'}}>Falar com a Luna</NavLink></Card></div></div><div style={{position:'fixed',bottom:0,left:240,right:0,background:'rgba(12,12,18,.92)',backdropFilter:'blur(12px)',borderTop:`1px solid ${C.line}`,padding:'11px 22px',display:'flex',gap:8,alignItems:'center',overflowX:'auto',zIndex:40}}><span style={{fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0,marginRight:4}}>⚡ Ações rápidas</span><button onClick={()=>addW(250)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#0ea5e9,#0369a1)',color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>💧 +250 ml Água</button><button onClick={()=>addP(20)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:'none',background:'linear-gradient(135deg,#16a34a,#15803d)',color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>🥩 +20 g Proteína</button>{[['⚖️ Peso','/saude'],['😊 Humor','/saude'],['📊 Intestino','/saude'],['💪 Treino','/exercicios'],['🍽️ Refeição','/alimentacao'],['💉 Aplicação','/tirzepatida']].map(([l,rota])=>(<button key={l} onClick={()=>navigate(rota)} style={{flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'9px 13px',borderRadius:11,border:`1px solid ${C.line}`,background:C.s,color:'#fff',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>{l}</button>))}</div></div>)}
 function Rotina(){
-  type RItem={t:string,n:string,cat:string}
+  type RItem={t:string,n:string,cat:string,dias?:number[]}
   const DEF:RItem[]=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
   const [items,setItems]=React.useState<RItem[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||DEF}catch{return DEF}})
   const rotinaDiaKey=`dos_rotina_done_${isoBR(new Date())}`
@@ -249,22 +249,37 @@ function Rotina(){
   const del=(i:number)=>{save(items.filter((_,idx)=>idx!==i));setDone(d=>d.filter(x=>x!==i).map(x=>x>i?x-1:x))}
   const addItem=()=>{if(!newItem.n||!newItem.t)return;save([...items,newItem]);setAdding(false);setNewItem({t:'',n:'',cat:'Saúde'})}
   React.useEffect(()=>{
+    const OBSOLETOS=new Set([
+      'Buscar Domi',
+      'Buscar Domi (sair 15 min antes) — Seg/Qua 12:50 · Ter/Qui 11:40 · Sex 13:00',
+      'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Cicaplast + extra do dia — Seg/Qua/Sex: Vitacid · Ter/Qui/Sáb: Effaclar Duo+M · Domingo: sem extra',
+    ])
     const chas:RItem[]=[
       {t:'06:00',n:'Chá verde + gengibre + canela',cat:'Alimentação'},
       {t:'12:00',n:'Chá hortelã + erva-doce (digestivo)',cat:'Alimentação'},
       {t:'15:00',n:'Chá hibisco + cavalinha',cat:'Alimentação'},
       {t:'20:30',n:'Chá camomila + melissa',cat:'Alimentação'},
-      {t:'11:25',n:'Buscar Domi (sair 15 min antes) — Seg/Qua 12:50 · Ter/Qui 11:40 · Sex 13:00',cat:'Família'},
       {t:'08:00',n:'Skincare manhã: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Filtro Solar La Roche-Posay, Cicaplast',cat:'Saúde'},
-      {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Cicaplast + extra do dia — Seg/Qua/Sex: Vitacid · Ter/Qui/Sáb: Effaclar Duo+M · Domingo: sem extra',cat:'Saúde'},
+      {t:'12:35',n:'Sair para buscar a Domi (busca 12:50)',cat:'Família',dias:[1,3]},
+      {t:'11:25',n:'Sair para buscar a Domi (busca 11:40)',cat:'Família',dias:[2,4]},
+      {t:'12:45',n:'Sair para buscar a Domi (busca 13:00)',cat:'Família',dias:[5]},
+      {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Vitacid, Cicaplast',cat:'Saúde',dias:[1,3,5]},
+      {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Effaclar Duo+M, Cicaplast',cat:'Saúde',dias:[2,4,6]},
+      {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Cicaplast',cat:'Saúde',dias:[0]},
     ]
     setItems(prev=>{
-      const nomes=new Set(prev.map(it=>it.n))
-      const faltando=chas.filter(c=>!nomes.has(c.n))
-      if(faltando.length===0)return prev
-      const n=[...prev,...faltando]
-      localStorage.setItem('dos_rotina',JSON.stringify(n))
-      return n
+      const mantidos=prev.map((it,idx)=>({it,idx})).filter(({it})=>!OBSOLETOS.has(it.n))
+      const removeuAlgo=mantidos.length!==prev.length
+      const nomesAtuais=new Set(mantidos.map(({it})=>it.n))
+      const faltando=chas.filter(c=>!nomesAtuais.has(c.n))
+      if(faltando.length===0&&!removeuAlgo)return prev
+      const novosItems=[...mantidos.map(({it})=>it),...faltando]
+      if(removeuAlgo){
+        const idxMap=new Map(mantidos.map(({idx},novoIdx)=>[idx,novoIdx]))
+        setDone(d=>d.map(x=>idxMap.get(x)).filter((x):x is number=>x!==undefined))
+      }
+      localStorage.setItem('dos_rotina',JSON.stringify(novosItems))
+      return novosItems
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[])
@@ -297,28 +312,37 @@ function Rotina(){
       <div><h1 style={{fontSize:24,fontWeight:800,margin:0}}>Minha Rotina</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginTop:4}}>Toque para marcar · ✏️ para editar · salva automaticamente</p></div>
       <button onClick={()=>setAdding(true)} style={{background:'linear-gradient(135deg,#8b5cf6,#7c3aed)',color:'#fff',border:'none',borderRadius:10,padding:'10px 16px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Novo item</button>
     </div>
-    <div style={{fontSize:13,color:'rgba(255,255,255,.5)',marginBottom:14}}>Hoje — {done.length} / {items.length} concluídos ({items.length>0?Math.round(done.length/items.length*100):0}%)</div>
-    {([['Manhã','☀️','#38bdf8'],['Tarde','🌤️','#fb923c'],['Noite','🌙',C.acc2]] as [string,string,string][]).map(([label,icon,cor])=>{
-      const pred=label==='Manhã'?(t:string)=>t<'12:00':label==='Tarde'?(t:string)=>t>='12:00'&&t<'18:00':(t:string)=>t>='18:00'
-      const bloco=items.map((item,i)=>({item,i})).filter(({item})=>pred(item.t)).sort((a,b)=>a.item.t.localeCompare(b.item.t))
-      if(bloco.length===0)return null
-      return(<div key={label} style={{marginBottom:18}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 16px',borderRadius:'14px 14px 0 0',background:`${cor}1f`,border:`1px solid ${cor}44`,borderBottom:'none'}}>
-          <span style={{fontSize:16}}>{icon}</span>
-          <span style={{fontWeight:800,fontSize:14,color:cor}}>{label}</span>
-        </div>
-        <div style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:'0 0 14px 14px',padding:'2px 16px'}}>
-          {bloco.map(({item,i})=>(<div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
-            <span onClick={()=>setDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} style={{width:24,height:24,borderRadius:'50%',display:'grid',placeItems:'center',background:done.includes(i)?'rgba(52,211,153,.2)':'rgba(255,255,255,.07)',color:done.includes(i)?C.ok:'rgba(255,255,255,.4)',fontSize:11,flexShrink:0,cursor:'pointer'}}>{done.includes(i)?'✓':'○'}</span>
-            <span onClick={()=>setDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0,cursor:'pointer'}}>{item.t}</span>
-            <span onClick={()=>setDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} style={{flex:1,fontSize:13.5,color:done.includes(i)?'rgba(255,255,255,.5)':'#f3f3f8',textDecoration:done.includes(i)?'line-through':'none',cursor:'pointer'}}>{item.n}</span>
-            <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:'rgba(139,92,246,.15)',color:C.acc2,flexShrink:0}}>{item.cat}</span>
-            <button onClick={()=>openEdit(i)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'none',color:'rgba(255,255,255,.5)',cursor:'pointer',fontSize:13,flexShrink:0}}>✏️</button>
-            <button onClick={()=>del(i)} style={{width:28,height:28,borderRadius:8,background:'rgba(248,113,113,.1)',border:'none',color:'#f87171',cursor:'pointer',fontSize:13,flexShrink:0}}>✕</button>
-          </div>))}
-        </div>
-      </div>)
-    })}
+    {(()=>{
+      const hojeDia=new Date(isoBR(new Date())+'T12:00:00-03:00').getDay()
+      const itemsHoje=items.map((item,i)=>({item,i})).filter(({item})=>!item.dias||item.dias.includes(hojeDia))
+      const doneHoje=itemsHoje.filter(({i})=>done.includes(i))
+      const CORES_CAT:Record<string,string>={'Espiritual':C.acc2,'Saúde':C.ok,'Alimentação':C.warn,'Família':C.pink,'Exercícios':C.water,'Casa':C.teal,'Trabalho':C.danger,'Compromisso':C.acc,'Desenvolvimento':'#fb923c'}
+      const ICONES_CAT:Record<string,string>={'Espiritual':'🙏','Saúde':'❤️','Alimentação':'🍽️','Família':'👨‍👩‍👧','Exercícios':'💪','Casa':'🏠','Trabalho':'💼','Compromisso':'📅','Desenvolvimento':'📚'}
+      return(<>
+        <div style={{fontSize:13,color:'rgba(255,255,255,.5)',marginBottom:14}}>Hoje — {doneHoje.length} / {itemsHoje.length} concluídos ({itemsHoje.length>0?Math.round(doneHoje.length/itemsHoje.length*100):0}%)</div>
+        {cats.map(tema=>{
+          const cor=CORES_CAT[tema]||C.acc2
+          const icon=ICONES_CAT[tema]||'📌'
+          const bloco=itemsHoje.filter(({item})=>item.cat===tema).sort((a,b)=>a.item.t.localeCompare(b.item.t))
+          if(bloco.length===0)return null
+          return(<div key={tema} style={{marginBottom:18}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 16px',borderRadius:'14px 14px 0 0',background:`${cor}1f`,border:`1px solid ${cor}44`,borderBottom:'none'}}>
+              <span style={{fontSize:16}}>{icon}</span>
+              <span style={{fontWeight:800,fontSize:14,color:cor}}>{tema}</span>
+            </div>
+            <div style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:'0 0 14px 14px',padding:'2px 16px'}}>
+              {bloco.map(({item,i})=>(<div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
+                <span onClick={()=>setDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} style={{width:24,height:24,borderRadius:'50%',display:'grid',placeItems:'center',background:done.includes(i)?'rgba(52,211,153,.2)':'rgba(255,255,255,.07)',color:done.includes(i)?C.ok:'rgba(255,255,255,.4)',fontSize:11,flexShrink:0,cursor:'pointer'}}>{done.includes(i)?'✓':'○'}</span>
+                <span onClick={()=>setDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0,cursor:'pointer'}}>{item.t}</span>
+                <span onClick={()=>setDone(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i])} style={{flex:1,fontSize:13.5,color:done.includes(i)?'rgba(255,255,255,.5)':'#f3f3f8',textDecoration:done.includes(i)?'line-through':'none',cursor:'pointer'}}>{item.n}</span>
+                <button onClick={()=>openEdit(i)} style={{width:28,height:28,borderRadius:8,background:'rgba(255,255,255,.06)',border:'none',color:'rgba(255,255,255,.5)',cursor:'pointer',fontSize:13,flexShrink:0}}>✏️</button>
+                <button onClick={()=>del(i)} style={{width:28,height:28,borderRadius:8,background:'rgba(248,113,113,.1)',border:'none',color:'#f87171',cursor:'pointer',fontSize:13,flexShrink:0}}>✕</button>
+              </div>))}
+            </div>
+          </div>)
+        })}
+      </>)
+    })()}
   </div>)}
 function Agenda(){
   const GOOGLE_CLIENT_ID='386247436984-g828bjjges33iherifnlbk18cfe0u1mj.apps.googleusercontent.com'
