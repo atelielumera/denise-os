@@ -320,12 +320,13 @@ function Rotina(){
       const ICONES_CAT:Record<string,string>={'Espiritual':'🙏','Saúde':'❤️','Alimentação':'🍽️','Família':'👨‍👩‍👧','Exercícios':'💪','Casa':'🏠','Trabalho':'💼','Compromisso':'📅','Desenvolvimento':'📚'}
       return(<>
         <div style={{fontSize:13,color:'rgba(255,255,255,.5)',marginBottom:14}}>Hoje — {doneHoje.length} / {itemsHoje.length} concluídos ({itemsHoje.length>0?Math.round(doneHoje.length/itemsHoje.length*100):0}%)</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(12,1fr)',gap:14}}>
         {cats.map(tema=>{
           const cor=CORES_CAT[tema]||C.acc2
           const icon=ICONES_CAT[tema]||'📌'
           const bloco=itemsHoje.filter(({item})=>item.cat===tema).sort((a,b)=>a.item.t.localeCompare(b.item.t))
           if(bloco.length===0)return null
-          return(<div key={tema} style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18,marginBottom:16}}>
+          return(<div key={tema} style={{gridColumn:'span 3',background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18}}>
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
               <span style={{fontSize:16}}>{icon}</span>
               <span style={{fontWeight:800,fontSize:14,color:cor}}>{tema}</span>
@@ -345,6 +346,7 @@ function Rotina(){
             </div>
           </div>)
         })}
+        </div>
       </>)
     })()}
   </div>)}
