@@ -1,5 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 
+function diasDesdeRegistroBR(dataBR) {
+  const m = /^(\d{2})\/(\d{2})$/.exec(dataBR || '')
+  if (!m) return null
+  const hoje = new Date()
+  const anoAtual = hoje.getFullYear()
+  let dataReg = new Date(Date.UTC(anoAtual, Number(m[2]) - 1, Number(m[1])))
+  if (dataReg.getTime() > hoje.getTime() + 86400000) dataReg = new Date(Date.UTC(anoAtual - 1, Number(m[2]) - 1, Number(m[1])))
+  return Math.floor((hoje.getTime() - dataReg.getTime()) / 86400000)
+}
+
 function horaLocalBR(dataISO) {
   const partes = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' }).formatToParts(new Date(dataISO))
   const h = partes.find((p) => p.type === 'hour')?.value || '00'
@@ -165,7 +175,14 @@ export async function buildLunaContext() {
     contas_vencendo_7dias: contasVencendo.map((c) => ({ nome: c.n, vencimento: c.venc })),
     agenda_proximos_7dias: agendaProximos7Dias,
     rotina_de_hoje: rotinaItens.map((it, i) => ({ horario: it.t, nome: it.n, categoria: it.cat, feito_hoje: rotinaDoneHoje.includes(i) })),
-    medicamentos: d.dos_medicamentos || {},
+    medicamentos: (() => {
+      const bruto = d.dos_medicamentos || {}
+      const comDias = {}
+      Object.keys(bruto).forEach((kid) => {
+        comDias[kid] = (bruto[kid] || []).map((m) => ({ ...m, dias_desde_registro: diasDesdeRegistroBR(m.data) }))
+      })
+      return comDias
+    })(),
     trabalho_tarefas: d.dos_trabalho || [],
     treinos_recentes: treinos.slice(0, 10),
     leituras_recentes: leituras.slice(0, 10)
