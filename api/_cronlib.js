@@ -193,6 +193,7 @@ export async function buildLunaContext() {
     sequencia_treinos_dias: sequencia(diasUnicos(treinos)),
     sequencia_leitura_dias: sequencia(diasUnicos(leituras)),
     sequencia_devocional_dias: sequencia(diasUnicos(devocionais)),
+    devocional_feito_hoje: devocionais.some((e) => e.data === hojeIso),
     livro_atual: d.dos_livro_atual || null,
     contas_vencendo_7dias: contasVencendo.map((c) => ({ nome: c.n, vencimento: c.venc })),
     agenda_proximos_7dias: agendaProximos7Dias,

@@ -698,17 +698,6 @@ function Espiritual(){
             <input value={(perguntas as any)[campo]} onChange={e=>setPergunta(campo,e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 12px',color:'#fff',fontSize:13.5}}/>
           </div>
         ))}
-        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.6)',margin:'12px 0 8px'}}>Pergunte</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-          {([
-            ['quem','Quem?'],['oque','O quê?'],['quando','Quando?'],['onde','Onde?'],['porque','Por quê?'],
-          ] as [string,string][]).map(([campo,label])=>(
-            <div key={campo}>
-              <label style={{fontSize:11.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>{label}</label>
-              <input value={(perguntas as any)[campo]} onChange={e=>setPergunta(campo,e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 12px',color:'#fff',fontSize:13.5}}/>
-            </div>
-          ))}
-        </div>
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Gratidão</label>
         <input value={grat} onChange={e=>setGrat(e.target.value)} placeholder="Sou grata por…" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/>
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Aprendizado</label>
