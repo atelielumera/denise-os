@@ -1,4 +1,30 @@
-import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSystemPrompt } from './_cronlib.js'
+import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSystemPrompt, getSupabaseAdmin } from './_cronlib.js'
+
+async function tentarMarcarFeito(number, userText, context) {
+  const pendentes = (context.rotina_de_hoje || []).map((it, idx) => ({ idx, ...it })).filter((it) => !it.feito_hoje)
+  if (pendentes.length === 0 || !userText) return false
+  try {
+    const classPrompt = 'Responda APENAS com um JSON, nada mais, sem comentario. Formato exato: {"feitos":[numeros]}. A Denise mandou esta mensagem pelo WhatsApp: "' + userText.replace(/"/g, "'") + '". Aqui estao os itens da rotina de hoje que AINDA NAO foram marcados como feitos, cada um com seu id: ' + JSON.stringify(pendentes.map((p) => ({ id: p.idx, horario: p.horario, nome: p.nome }))) + '. Se a mensagem confirmar que ela fez um ou mais desses itens agora (ex: "ja fiz o X", "feito", "acabei de Y", "consegui buscar a Domi"), coloque os ids correspondentes em "feitos". Se a mensagem nao for uma confirmacao de tarefa feita (for pergunta, comentario, ou nao bater com nenhum item da lista), responda {"feitos":[]}.'
+    const classResp = await askLuna(classPrompt, [{ type: 'text', text: userText }])
+    const match = classResp.match(/\{[\s\S]*\}/)
+    const parsed = match ? JSON.parse(match[0]) : { feitos: [] }
+    const feitos = Array.isArray(parsed.feitos) ? parsed.feitos.filter((n) => typeof n === 'number' && pendentes.some((p) => p.idx === n)) : []
+    if (feitos.length === 0) return false
+    const supabase = getSupabaseAdmin()
+    if (!supabase) return false
+    const chave = `dos_rotina_done_${context.data_hoje}`
+    const { data: snap } = await supabase.from('app_snapshot').select('data').eq('id', 'denise').maybeSingle()
+    const d = snap?.data || {}
+    const atual = Array.isArray(d[chave]) ? d[chave] : []
+    const uniao = Array.from(new Set([...atual, ...feitos]))
+    await supabase.from('app_snapshot').upsert({ id: 'denise', data: { ...d, [chave]: uniao }, updated_at: new Date().toISOString() })
+    const nomes = pendentes.filter((p) => feitos.includes(p.idx)).map((p) => p.nome)
+    await sendWhatsappText(number, '✅ Marquei como feito: ' + nomes.join(', ') + '!')
+    return true
+  } catch {
+    return false
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -62,6 +88,15 @@ export default async function handler(req, res) {
     userContent.push({ type: 'text', text: userText || 'A Denise enviou uma imagem sem legenda pelo WhatsApp. Comente o que você vê e pergunte no que pode ajudar.' })
 
     const context = await buildLunaContext()
+
+    if (userText) {
+      const marcou = await tentarMarcarFeito(number, userText, context)
+      if (marcou) {
+        res.status(200).json({ ok: true })
+        return
+      }
+    }
+
     const systemPrompt = lunaSystemPrompt('Você está respondendo agora pelo WhatsApp, com respostas curtas (2 a 5 frases). Responda apenas o que a Denise perguntou ou comentou agora - não puxe lembretes, contas, agenda ou avisos por conta própria. Se ela só cumprimentar ou bater papo, cumprimente de volta e pergunte como pode ajudar, sem listar informações do contexto.') + '\n\nContexto atual (dados reais da Denise, agora):\n' + JSON.stringify(context, null, 2)
 
     const reply = await askLuna(systemPrompt, userContent)

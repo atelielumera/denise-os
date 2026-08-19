@@ -94,7 +94,7 @@ function ModalFam({onClose}:{onClose:()=>void}){const {fam,setFam}=React.useCont
 function Shell(){
   React.useEffect(()=>{
     const EXCLUIR=['dos_google_token','dos_photos','dos_cfg_notif','dos_cfg_resumo','dos_cfg_fuso','dos_cfg_formato']
-    function sincronizarSnapshot(){
+    async function sincronizarSnapshot(){
       const dados:Record<string,any>={}
       for(let i=0;i<localStorage.length;i++){
         const k=localStorage.key(i)
@@ -103,6 +103,16 @@ function Shell(){
         if(v===null)continue
         try{dados[k]=JSON.parse(v)}catch{dados[k]=v}
       }
+      try{
+        const {data:snap}=await supabase.from('app_snapshot').select('data').eq('id','denise').maybeSingle()
+        const remoto=snap?.data||{}
+        const chaveHoje=`dos_rotina_done_${isoBR(new Date())}`
+        if(Array.isArray(remoto[chaveHoje])){
+          const uniao=Array.from(new Set([...(dados[chaveHoje]||[]),...remoto[chaveHoje]]))
+          dados[chaveHoje]=uniao
+          localStorage.setItem(chaveHoje,JSON.stringify(uniao))
+        }
+      }catch{}
       supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()}).then(()=>{})
     }
     sincronizarSnapshot()

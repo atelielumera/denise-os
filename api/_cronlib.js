@@ -151,6 +151,13 @@ export async function buildLunaContext() {
   const agendaGoogle = eventosGoogleAoVivo.length > 0 ? eventosGoogleAoVivo : (Array.isArray(d.dos_google_events_cache) ? d.dos_google_events_cache : [])
   const rotinaItens = Array.isArray(d.dos_rotina) ? d.dos_rotina : []
   const rotinaDoneHoje = Array.isArray(d[`dos_rotina_done_${hojeIso}`]) ? d[`dos_rotina_done_${hojeIso}`] : []
+  const ontemIso = dataIsoBR(-1)
+  const diaSemanaOntem = new Date(ontemIso + 'T12:00:00-03:00').getDay()
+  const rotinaDoneOntem = Array.isArray(d[`dos_rotina_done_${ontemIso}`]) ? d[`dos_rotina_done_${ontemIso}`] : []
+  const rotinaPendenteOntem = rotinaItens
+    .map((it, i) => ({ it, i }))
+    .filter(({ it, i }) => (!it.dias || it.dias.includes(diaSemanaOntem)) && !rotinaDoneOntem.includes(i))
+    .map(({ it }) => ({ horario: it.t, nome: it.n, categoria: it.cat }))
   const casaItens = Array.isArray(d.dos_casa_items) ? d.dos_casa_items : []
   const treinos = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
   const leituras = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
@@ -198,6 +205,7 @@ export async function buildLunaContext() {
     contas_vencendo_7dias: contasVencendo.map((c) => ({ nome: c.n, vencimento: c.venc })),
     agenda_proximos_7dias: agendaProximos7Dias,
     rotina_de_hoje: rotinaItens.map((it, i) => ({ horario: it.t, nome: it.n, categoria: it.cat, feito_hoje: rotinaDoneHoje.includes(i) })),
+    rotina_pendente_ontem: rotinaPendenteOntem,
     medicamentos: (() => {
       const bruto = d.dos_medicamentos || {}
       const comDias = {}
