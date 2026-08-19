@@ -182,6 +182,7 @@ export async function buildLunaContext() {
   ].filter((e) => e.data >= hojeIso && e.data <= em7diasIso).sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora))
 
   const contasVencendo = casaItens.filter((i) => i.cat === 'Contas' && i.venc && !i.done && i.venc >= hojeIso && i.venc <= em7diasIso)
+  const casaPendenteGeral = casaItens.filter((i) => i.cat !== 'Contas' && !i.done)
 
   const aguaLog = d.dos_agua_log || {}
   const aguaHojeMl = Number(aguaLog[hojeIso] || 0)
@@ -203,6 +204,7 @@ export async function buildLunaContext() {
     devocional_feito_hoje: devocionais.some((e) => e.data === hojeIso),
     livro_atual: d.dos_livro_atual || null,
     contas_vencendo_7dias: contasVencendo.map((c) => ({ nome: c.n, vencimento: c.venc })),
+    casa_pendente: casaPendenteGeral.map((c) => ({ nome: c.n, categoria: c.cat })),
     agenda_proximos_7dias: agendaProximos7Dias,
     rotina_de_hoje: rotinaItens.map((it, i) => ({ horario: it.t, nome: it.n, categoria: it.cat, feito_hoje: rotinaDoneHoje.includes(i) })),
     rotina_pendente_ontem: rotinaPendenteOntem,

@@ -44,6 +44,7 @@ export default async function handler(req, res) {
     const rotina = Array.isArray(d.dos_rotina) ? d.dos_rotina : []
     const doneHoje = Array.isArray(d[`dos_rotina_done_${hojeIso}`]) ? d[`dos_rotina_done_${hojeIso}`] : []
     const medicamentos = d.dos_medicamentos || {}
+    const agenda = Array.isArray(d.dos_agenda) ? d.dos_agenda : []
 
     function estaNaJanela(hhmm) {
       const min = paraMinutos(hhmm)
@@ -70,6 +71,11 @@ export default async function handler(req, res) {
           avisos.push(`💊 ${h} · ${m.nome}${m.dosagem ? ` ${m.dosagem}` : ''}${quem}`)
         })
       })
+    })
+
+    agenda.forEach((ev) => {
+      if (ev.data !== hojeIso) return
+      if (estaNaJanela(ev.hora)) avisos.push(`📅 ${ev.hora} · ${ev.nome}`)
     })
 
     if (avisos.length === 0) {
