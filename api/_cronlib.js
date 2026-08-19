@@ -1,5 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
+function dataIsoBR(offsetDias = 0) {
+  const d = new Date(Date.now() + offsetDias * 86400000)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(d)
+}
+
 function diasDesdeRegistroBR(dataBR) {
   const m = /^(\d{2})\/(\d{2})$/.exec(dataBR || '')
   if (!m) return null
@@ -117,8 +122,8 @@ export function getSupabaseAdmin() {
 }
 
 export async function buildLunaContext() {
-  const hojeIso = new Date().toISOString().slice(0, 10)
-  const em7diasIso = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+  const hojeIso = dataIsoBR(0)
+  const em7diasIso = dataIsoBR(7)
   const supabase = getSupabaseAdmin()
   if (!supabase) return { data_hoje: hojeIso, tirzepatida: null }
 

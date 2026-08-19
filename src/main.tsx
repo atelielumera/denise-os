@@ -7,7 +7,8 @@ import { supabase } from './lib/supabase'
 
 const qc=new QueryClient()
 const C={bg:'#0a0a0f',s:'#16161f',s2:'#1c1c28',s3:'#22222f',line:'rgba(255,255,255,.07)',acc:'#8b5cf6',acc2:'#a78bfa',ok:'#34d399',water:'#38bdf8',warn:'#fbbf24',danger:'#f87171',pink:'#f472b6',teal:'#2dd4bf'}
-function hojeIsoAgua(){return new Date().toISOString().slice(0,10)}
+function isoBR(d:Date){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(d)}
+function hojeIsoAgua(){return isoBR(new Date())}
 function lerAguaHoje(){
   try{
     const iso=hojeIsoAgua()
@@ -121,7 +122,7 @@ function Shell(){
   function sequenciaShell(dias:Set<string>){
     let n=0
     const dt=new Date()
-    while(dias.has(dt.toISOString().slice(0,10))){n++;dt.setDate(dt.getDate()-1)}
+    while(dias.has(isoBR(dt))){n++;dt.setDate(dt.getDate()-1)}
     return n
   }
   function pctDiaShell(iso:string){
@@ -135,7 +136,7 @@ function Shell(){
     const dt=new Date()
     try{
       const log=JSON.parse(localStorage.getItem('dos_agua_log')||'{}')
-      while((log[dt.toISOString().slice(0,10)]||0)>=2500){n++;dt.setDate(dt.getDate()-1)}
+      while((log[isoBR(dt)]||0)>=2500){n++;dt.setDate(dt.getDate()-1)}
     }catch{}
     return n
   }
@@ -146,8 +147,8 @@ function Shell(){
   const seqTreino=sequenciaShell(diasUnicosShell(treinosShell))
   const seqLeitura=sequenciaShell(diasUnicosShell(leiturasShell))
   const seqAgua=sequenciaAguaShell()
-  const ultimos7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().slice(0,10)})
-  const anteriores7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return d.toISOString().slice(0,10)})
+  const ultimos7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return isoBR(d)})
+  const anteriores7Shell=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return isoBR(d)})
   const pctSemanaAtual=ultimos7Shell.map(pctDiaShell)
   const pctSemanaAnterior=anteriores7Shell.map(pctDiaShell)
   const mediaAtual=Math.round(pctSemanaAtual.reduce((a,b)=>a+b,0)/7*100)
@@ -185,7 +186,7 @@ function Home(){const navigate=useNavigate();
   const ultimoSaude=extrasSaude[0]
   const ROTINA_DEF_HOME=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
   const rotinaItens=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||ROTINA_DEF_HOME}catch{return ROTINA_DEF_HOME}})() as any[]
-  const hojeIsoHome=new Date().toISOString().slice(0,10)
+  const hojeIsoHome=isoBR(new Date())
   const rotinaDiaKeyHome=`dos_rotina_done_${hojeIsoHome}`
   const rotinaDoneIdx=new Set<number>((()=>{try{return JSON.parse(localStorage.getItem(rotinaDiaKeyHome)||'[]')}catch{return []}})())
   const rotinaOrdenada=rotinaItens.map((it:any,idx:number)=>({...it,idx})).sort((a:any,b:any)=>String(a.t).localeCompare(String(b.t)))
@@ -200,10 +201,10 @@ function Home(){const navigate=useNavigate();
   let devSequencia=0
   const devDcursor=new Date()
   if(!devDiasSet.has(hojeIsoHome))devDcursor.setDate(devDcursor.getDate()-1)
-  while(devDiasSet.has(devDcursor.toISOString().slice(0,10))){devSequencia++;devDcursor.setDate(devDcursor.getDate()-1)}
+  while(devDiasSet.has(isoBR(devDcursor))){devSequencia++;devDcursor.setDate(devDcursor.getDate()-1)}
   const treinosHome=(()=>{try{return JSON.parse(localStorage.getItem('dos_treinos')||'[]')}catch{return []}})() as any[]
   function segundaDaSemanaHome(d:Date){const x=new Date(d);const day=x.getDay();const diff=(day===0?-6:1-day);x.setDate(x.getDate()+diff);return x}
-  const segIsoHome=segundaDaSemanaHome(new Date()).toISOString().slice(0,10)
+  const segIsoHome=isoBR(segundaDaSemanaHome(new Date()))
   const treinosSemana=treinosHome.filter((t:any)=>t.data>=segIsoHome)
   const diasTreinoPlanejados=6
   const exPct=Math.min(100,Math.round(treinosSemana.length/diasTreinoPlanejados*100))
@@ -234,7 +235,7 @@ function Rotina(){
   type RItem={t:string,n:string,cat:string}
   const DEF:RItem[]=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
   const [items,setItems]=React.useState<RItem[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||DEF}catch{return DEF}})
-  const rotinaDiaKey=`dos_rotina_done_${new Date().toISOString().slice(0,10)}`
+  const rotinaDiaKey=`dos_rotina_done_${isoBR(new Date())}`
   const [done,setDoneRaw]=React.useState<number[]>(()=>{try{return JSON.parse(localStorage.getItem(rotinaDiaKey)||'[]')}catch{return []}})
   const setDone=(fn:number[]|((prev:number[])=>number[]))=>{setDoneRaw((prev:number[])=>{const n=typeof fn==='function'?(fn as (prev:number[])=>number[])(prev):fn;localStorage.setItem(rotinaDiaKey,JSON.stringify(n));return n})}
   const [editIdx,setEditIdx]=React.useState<number|null>(null)
@@ -596,7 +597,7 @@ function Espiritual(){
   const [apren,setApren]=React.useState('')
   const [saved,setSaved]=React.useState(false)
   const [entries,setEntries]=React.useState<any[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})
-  function isoHoje(){return new Date().toISOString().slice(0,10)}
+  function isoHoje(){return isoBR(new Date())}
   function salvar(){
     const hoje=isoHoje()
     const reg={data:hoje,ref,reflex,grat,apren}
@@ -609,7 +610,7 @@ function Espiritual(){
   let sequencia=0
   const dcursor=new Date()
   if(!diasComEntrada.has(isoHoje()))dcursor.setDate(dcursor.getDate()-1)
-  while(diasComEntrada.has(dcursor.toISOString().slice(0,10))){sequencia++;dcursor.setDate(dcursor.getDate()-1)}
+  while(diasComEntrada.has(isoBR(dcursor))){sequencia++;dcursor.setDate(dcursor.getDate()-1)}
   const anoAtual=String(new Date().getFullYear())
   const diasNoAno=entries.filter((e:any)=>e.data.startsWith(anoAtual)).length
   const pctAno=Math.min(100,Math.round(diasNoAno/365*100))
@@ -1176,7 +1177,7 @@ function Exercicios(){
   const fmt=(s:number)=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
   function pararTreino(){
     setAtivo(false)
-    const reg={data:new Date().toISOString().slice(0,10),tipo,duracaoMin:Math.max(1,Math.round(dur/60))}
+    const reg={data:isoBR(new Date()),tipo,duracaoMin:Math.max(1,Math.round(dur/60))}
     const n=[reg,...treinos]
     setTreinos(n);localStorage.setItem('dos_treinos',JSON.stringify(n))
     setSaved(true)
@@ -1184,7 +1185,7 @@ function Exercicios(){
   function segundaDaSemana(d:Date){const x=new Date(d);const day=x.getDay();const diff=(day===0?-6:1-day);x.setDate(x.getDate()+diff);return x}
   const seg=segundaDaSemana(new Date())
   const diasComTreino=new Set(treinos.map((t:any)=>t.data))
-  const plano=PLANO_SEMANA.map(([d,t],i)=>{const dt=new Date(seg);dt.setDate(seg.getDate()+i);const iso=dt.toISOString().slice(0,10);return [d,t,diasComTreino.has(iso)] as [string,string,boolean]})
+  const plano=PLANO_SEMANA.map(([d,t],i)=>{const dt=new Date(seg);dt.setDate(seg.getDate()+i);const iso=isoBR(dt);return [d,t,diasComTreino.has(iso)] as [string,string,boolean]})
   return(<div style={{padding:'24px 28px'}}>
     <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Exercícios</h1>
     <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Plano semanal · domingo é descanso</p>
@@ -1210,7 +1211,7 @@ function TirzepatidaPage(){
   const [applications,setApplications]=React.useState<any[]>([])
   const [person,setPerson]=React.useState<'denise'|'flavio'>('denise')
   const [dose,setDose]=React.useState('5')
-  const [date,setDate]=React.useState(new Date().toISOString().slice(0,10))
+  const [date,setDate]=React.useState(isoBR(new Date()))
   const [msg,setMsg]=React.useState('')
   const [filtro,setFiltro]=React.useState<'todos'|'denise'|'flavio'>('todos')
   const [seeding,setSeeding]=React.useState(false)
@@ -1539,7 +1540,7 @@ function Desenvolvimento(){
     setEstante(n);localStorage.setItem('dos_estante',JSON.stringify(n))
   }
   function salvarLeitura(){
-    const reg={data:new Date().toISOString().slice(0,10),pag:Number(pag)||0,min:Number(min)||0,apren}
+    const reg={data:isoBR(new Date()),pag:Number(pag)||0,min:Number(min)||0,apren}
     const n=[reg,...leituras]
     setLeituras(n);localStorage.setItem('dos_leituras',JSON.stringify(n))
     if(livro.totalPaginas>0&&Number(pag)>0){
@@ -1551,9 +1552,9 @@ function Desenvolvimento(){
   const diasComLeitura=new Set(leituras.map((l:any)=>l.data))
   let sequenciaLeitura=0
   const dcursor=new Date()
-  const hojeIso=new Date().toISOString().slice(0,10)
+  const hojeIso=isoBR(new Date())
   if(!diasComLeitura.has(hojeIso))dcursor.setDate(dcursor.getDate()-1)
-  while(diasComLeitura.has(dcursor.toISOString().slice(0,10))){sequenciaLeitura++;dcursor.setDate(dcursor.getDate()-1)}
+  while(diasComLeitura.has(isoBR(dcursor))){sequenciaLeitura++;dcursor.setDate(dcursor.getDate()-1)}
   return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Desenvolvimento</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Biblioteca pessoal · 🔥 Sequência de {sequenciaLeitura} dia{sequenciaLeitura===1?'':'s'} de leitura</p><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}><Card title="Lendo agora"><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}><div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Título</label><input value={livro.titulo} onChange={e=>atualizarLivro('titulo',e.target.value)} placeholder="Nome do livro" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 9px',color:'#fff',fontSize:12.5}}/></div><div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Autor</label><input value={livro.autor} onChange={e=>atualizarLivro('autor',e.target.value)} placeholder="Autor" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 9px',color:'#fff',fontSize:12.5}}/></div></div><div style={{marginBottom:16}}><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Total de páginas</label><input type="number" value={livro.totalPaginas||''} onChange={e=>atualizarLivro('totalPaginas',e.target.value)} placeholder="320" style={{width:120,background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 9px',color:'#fff',fontSize:12.5}}/>{livro.titulo&&livro.totalPaginas>0&&<><div style={{fontSize:13,color:'rgba(255,255,255,.4)',marginTop:8}}>{livro.paginaAtual} / {livro.totalPaginas} páginas · {Math.min(100,Math.round(livro.paginaAtual/livro.totalPaginas*100))}%</div><div style={{height:7,borderRadius:4,background:C.s3,overflow:'hidden',marginTop:6,width:180}}><div style={{height:'100%',width:`${Math.min(100,Math.round(livro.paginaAtual/livro.totalPaginas*100))}%`,borderRadius:4,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div></>}</div>{saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Leitura registrada!</div>}<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}><div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Páginas</label><input type="number" value={pag} onChange={e=>setPag(e.target.value)} placeholder="20" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14}}/></div><div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Minutos</label><input type="number" value={min} onChange={e=>setMin(e.target.value)} placeholder="20" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14}}/></div></div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Aprendizado</label><input value={apren} onChange={e=>setApren(e.target.value)} placeholder="O que aprendi…" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/><button onClick={salvarLeitura} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>✓ Registrar leitura</button>
 {leituras.length>0&&<div style={{marginTop:16,borderTop:`1px solid ${C.line}`,paddingTop:12}}>
   <div style={{fontSize:12,fontWeight:700,marginBottom:8,color:'rgba(255,255,255,.6)'}}>Últimas leituras</div>
@@ -1638,14 +1639,14 @@ function Insights(){
   function diasUnicos(entries:any[]):Set<string>{return new Set(entries.map((e:any)=>e.data))}
   function sequencia(dias:Set<string>):number{
     let n=0;const d=new Date()
-    while(dias.has(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1)}
+    while(dias.has(isoBR(d))){n++;d.setDate(d.getDate()-1)}
     return n
   }
-  const treinosSemana=(()=>{const hoje=new Date();const dias=diasUnicos(treinosI);let c=0;for(let i=0;i<7;i++){const d=new Date(hoje);d.setDate(d.getDate()-i);if(dias.has(d.toISOString().slice(0,10)))c++}return c})()
+  const treinosSemana=(()=>{const hoje=new Date();const dias=diasUnicos(treinosI);let c=0;for(let i=0;i<7;i++){const d=new Date(hoje);d.setDate(d.getDate()-i);if(dias.has(isoBR(d)))c++}return c})()
   const seqLeitura=sequencia(diasUnicos(leiturasI))
   const seqDev=sequencia(diasUnicos(devI))
-  const hojeIsoI=new Date().toISOString().slice(0,10)
-  const em7diasIsoI=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+  const hojeIsoI=isoBR(new Date())
+  const em7diasIsoI=isoBR(new Date(Date.now()+7*86400000))
   const contasVencendo=casaI.filter((i:any)=>i.cat==='Contas'&&i.venc&&!i.done&&i.venc>=hojeIsoI&&i.venc<=em7diasIsoI)
   const pessoasSchedI=Object.keys(tzSched)
   const tzAutonomyI=(()=>{const dDen=tzSched.denise?.planned_dose_mg||5;const dFla=tzSched.flavio?.planned_dose_mg||2.5;const iDen=tzSched.denise?.interval_days||5;const iFla=tzSched.flavio?.interval_days||7;const mgDay=dDen/iDen+dFla/iFla;return mgDay>0?Math.floor(tzBalance/mgDay):0})()
@@ -1690,7 +1691,7 @@ function Relatorios(){
   const semanasScore=Array.from({length:7},(_,i)=>{
     const inicio=new Date(segAtualR);inicio.setDate(inicio.getDate()-(6-i)*7)
     let ativos=0
-    for(let d=0;d<7;d++){const dia=new Date(inicio);dia.setDate(dia.getDate()+d);if(diasAtivosR.has(dia.toISOString().slice(0,10)))ativos++}
+    for(let d=0;d<7;d++){const dia=new Date(inicio);dia.setDate(dia.getDate()+d);if(diasAtivosR.has(isoBR(dia)))ativos++}
     return {s:`${String(inicio.getDate()).padStart(2,'0')}/${String(inicio.getMonth()+1).padStart(2,'0')}`,v:Math.round(ativos/7*100)}
   })
   function diasComEntradaUltimos(entries:any[],dias:number){
@@ -1706,7 +1707,7 @@ function Relatorios(){
   const protR=Number(localStorage.getItem('dos_prot')||0)
   const hidPctR=Math.min(100,Math.round(watR/2500*100))
   const aliPctR=Math.min(100,Math.round(protR/120*100))
-  const hojeIsoR=new Date().toISOString().slice(0,10)
+  const hojeIsoR=isoBR(new Date())
   const pessoasSchedR=Object.keys(tzSched)
   const emDiaR=pessoasSchedR.filter(pid=>{const nd=tzSched[pid].next_application_date;return nd&&nd>=hojeIsoR}).length
   const tzPctR=pessoasSchedR.length>0?Math.round(emDiaR/pessoasSchedR.length*100):0
@@ -1766,9 +1767,9 @@ function Assistente(){
     const trabalhoI=(()=>{try{return JSON.parse(localStorage.getItem('dos_trabalho')||'[]')}catch{return []}})() as any[]
     const rotinaItensI=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'[]')}catch{return []}})() as any[]
     function diasUnicos(entries:any[]):Set<string>{return new Set(entries.map((e:any)=>e.data))}
-    function sequencia(dias:Set<string>):number{let n=0;const d=new Date();while(dias.has(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1)}return n}
-    const hojeIso=new Date().toISOString().slice(0,10)
-    const em7diasIso=new Date(Date.now()+7*86400000).toISOString().slice(0,10)
+    function sequencia(dias:Set<string>):number{let n=0;const d=new Date();while(dias.has(isoBR(d))){n++;d.setDate(d.getDate()-1)}return n}
+    const hojeIso=isoBR(new Date())
+    const em7diasIso=isoBR(new Date(Date.now()+7*86400000))
     const contasVencendo=casaI.filter((i:any)=>i.cat==='Contas'&&i.venc&&!i.done&&i.venc>=hojeIso&&i.venc<=em7diasIso)
     const rotinaDoneHoje=(()=>{try{return JSON.parse(localStorage.getItem(`dos_rotina_done_${hojeIso}`)||'[]')}catch{return []}})() as number[]
     const agendaProximos7Dias=[
@@ -1935,7 +1936,7 @@ function Config(){
     const url=URL.createObjectURL(blob)
     const a=document.createElement('a')
     a.href=url
-    a.download=`denise-os-dados-${new Date().toISOString().slice(0,10)}.json`
+    a.download=`denise-os-dados-${isoBR(new Date())}.json`
     document.body.appendChild(a);a.click();document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
