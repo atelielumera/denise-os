@@ -264,6 +264,8 @@ function Rotina(){
   const [casaItens,setCasaItens]=React.useState<{n:string,cat:string,done:boolean,venc?:string}[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_casa_items')||'[]')}catch{return []}})
   const toggleCasa=(item:{n:string,cat:string,done:boolean,venc?:string})=>{const n=casaItens.map(x=>x===item?{...x,done:!x.done}:x);setCasaItens(n);localStorage.setItem('dos_casa_items',JSON.stringify(n))}
   const casaPendentes=casaItens.filter(c=>!c.done)
+  const [avals,setAvals]=React.useState<Record<string,{data:string,tipo:string,obs:string,feito:boolean}[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_avals')||'{}')}catch{return {}}})
+  const toggleAval=(kid:string,item:{data:string,tipo:string,obs:string,feito:boolean})=>{const lista=(avals[kid]||[]).map(x=>x===item?{...x,feito:!x.feito}:x);const n={...avals,[kid]:lista};setAvals(n);localStorage.setItem('dos_avals',JSON.stringify(n))}
   const save=(it:RItem[])=>{setItems(it);localStorage.setItem('dos_rotina',JSON.stringify(it))}
   const openEdit=(i:number)=>{setEditIdx(i);setEditItem({...items[i]})}
   const saveEdit=()=>{if(editIdx===null)return;const n=[...items];n[editIdx]=editItem;save(n);setEditIdx(null)}
@@ -401,11 +403,12 @@ function Rotina(){
           const cor=kid==='domi'?C.pink:C.water
           const pk=fam[kid]?.pk?.[hojeDia]||'—'
           const itensKid=itemsHoje.filter(({item})=>item.cat==='Família'&&(item.n.includes(nome)||!(item.n.includes('Domi')||item.n.includes('Derick'))))
+          const avalsKid=(avals[kid]||[]).filter(a=>!a.feito).sort((a,b)=>a.data.localeCompare(b.data))
           return(<div key={kid} style={{gridColumn:'span 3',background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18}}>
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
               <span style={{fontSize:16}}>👧</span>
               <span style={{fontWeight:800,fontSize:14,color:cor}}>{nome}</span>
-              <span style={{fontSize:11,color:'rgba(255,255,255,.3)'}}>({itensKid.length+1})</span>
+              <span style={{fontSize:11,color:'rgba(255,255,255,.3)'}}>({itensKid.length+1+avalsKid.length})</span>
             </div>
             <div>
               <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
@@ -423,6 +426,11 @@ function Rotina(){
                   <button onClick={()=>del(i)} style={{width:28,height:28,borderRadius:8,background:'rgba(248,113,113,.1)',border:'none',color:'#f87171',cursor:'pointer',fontSize:13,flexShrink:0}}>✕</button>
                 </div>)
               })}
+              {avalsKid.map((a,ai)=>(<div key={'aval'+ai} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
+                <span onClick={()=>toggleAval(kid,a)} style={{width:24,height:24,borderRadius:'50%',display:'grid',placeItems:'center',background:'rgba(255,255,255,.07)',color:'rgba(255,255,255,.4)',fontSize:11,flexShrink:0,cursor:'pointer'}}>○</span>
+                <span style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{a.data}</span>
+                <span onClick={()=>toggleAval(kid,a)} style={{flex:1,fontSize:13.5,color:'#f3f3f8',cursor:'pointer'}}>{a.tipo}{a.obs?<span style={{color:'rgba(255,255,255,.4)',fontSize:11.5}}> · {a.obs}</span>:null}</span>
+              </div>))}
             </div>
           </div>)
         })}
