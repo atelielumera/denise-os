@@ -356,7 +356,7 @@ function Rotina(){
               <span style={{fontWeight:800,fontSize:14,color:cor}}>{tema}</span>
               <span style={{fontSize:11,color:'rgba(255,255,255,.3)'}}>({bloco.length+extraCasa.length})</span>
             </div>
-            <div>
+            <div style={{maxHeight:225,overflowY:'auto' as const}}>
               {bloco.map(({item,i})=>{
                 const feito=done.includes(i)
                 return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
@@ -384,7 +384,7 @@ function Rotina(){
               <span style={{fontWeight:800,fontSize:14,color:C.acc2}}>Tirzepatida</span>
               <span style={{fontSize:11,color:'rgba(255,255,255,.3)'}}>({pessoas.length})</span>
             </div>
-            <div>
+            <div style={{maxHeight:225,overflowY:'auto' as const}}>
               {pessoas.map(p=>{
                 const info=tzSchedAll[p]
                 const dueToday=info.next===hojeIsoTz
@@ -410,7 +410,7 @@ function Rotina(){
               <span style={{fontWeight:800,fontSize:14,color:cor}}>{nome}</span>
               <span style={{fontSize:11,color:'rgba(255,255,255,.3)'}}>({itensKid.length+1+avalsKid.length})</span>
             </div>
-            <div>
+            <div style={{maxHeight:225,overflowY:'auto' as const}}>
               <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
                 <span style={{width:24,height:24,borderRadius:'50%',display:'grid',placeItems:'center',background:'rgba(255,255,255,.07)',color:'rgba(255,255,255,.4)',fontSize:11,flexShrink:0}}>🚗</span>
                 <span style={{flex:1,fontSize:13.5,color:'#f3f3f8'}}>Buscar {nome}</span>
