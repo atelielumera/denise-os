@@ -59,12 +59,20 @@ export default async function handler(req, res) {
       return alvo <= agoraMin && alvo > agoraMin - JANELA_MIN
     }
 
+    // Lembrete uma vez no horario, depois cobranca de hora em hora ate o corte (se ainda nao feito).
+    function lembraOuCobra(hhmm, corteMin) {
+      const min = paraMinutos(hhmm)
+      if (min === null) return false
+      if (agoraMin < min || agoraMin >= corteMin) return false
+      return (agoraMin - min) % 60 < JANELA_MIN
+    }
+
     const avisos = []
 
     rotina.forEach((item, i) => {
       if (item.dias && !item.dias.includes(diaSemanaHoje)) return
       if (doneHoje.includes(i)) return
-      if (estaNaJanela(item.t)) avisos.push(`⏰ ${item.t} · ${item.n}`)
+      if (lembraOuCobra(item.t, 22 * 60)) avisos.push(`⏰ ${item.t} · ${item.n}`)
     })
 
     Object.keys(medicamentos).forEach((pessoaId) => {
@@ -112,13 +120,13 @@ export default async function handler(req, res) {
     const treinoTipoHoje = PLANO_TREINO_SEMANA[diaSemanaHoje]
     const treinos = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
     const treinoRegistradoHoje = treinos.some((t) => t.data === hojeIso) || d[`dos_treino_registrado_${hojeIso}`]
-    if (treinoTipoHoje && !treinoRegistradoHoje && agoraMin >= 12 * 60 && agoraMin <= 21 * 60 + 30) {
-      avisos.push(`🏋️ Ainda não registrei o treino de hoje (${treinoTipoHoje}). Feito ou não feito? Me conta pra eu registrar.`)
+    if (treinoTipoHoje && !treinoRegistradoHoje && lembraOuCobra('12:00', 21 * 60 + 30)) {
+      avisos.push(`🏋️ Treino de hoje (${treinoTipoHoje}) — já fez ou não? Me conta pra eu registrar.`)
     }
 
     const leituras = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
     const leituraFeitaHoje = leituras.some((l) => l.data === hojeIso)
-    if (!leituraFeitaHoje && agoraMin >= 21 * 60 && agoraMin <= 23 * 60) {
+    if (!leituraFeitaHoje && lembraOuCobra('21:00', 23 * 60)) {
       const livroAtual = d.dos_livro_atual || null
       const nomeLivro = livroAtual?.titulo ? ` — "${livroAtual.titulo}"` : ''
       avisos.push(`📖 Hora da leitura (20 min)${nomeLivro}. Registre quantas páginas leu e onde parou.`)
@@ -126,7 +134,7 @@ export default async function handler(req, res) {
 
     const casaItens = Array.isArray(d.dos_casa_items) ? d.dos_casa_items : []
     const casaPendenteHoje = casaItens.filter((i) => !i.done)
-    if (casaPendenteHoje.length > 0 && agoraMin >= 19 * 60 && agoraMin < 19 * 60 + JANELA_MIN) {
+    if (casaPendenteHoje.length > 0 && lembraOuCobra('12:00', 21 * 60)) {
       avisos.push(`🏠 Pendente na Casa: ${casaPendenteHoje.map((i) => i.n).join(', ')}. Já fez alguma coisa? Me conta pra eu registrar.`)
     }
 
@@ -139,7 +147,7 @@ export default async function handler(req, res) {
       const doses = {}
       ;(schedRows || []).forEach((r) => { doses[r.person] = r.planned_dose_mg })
       const pendentes = ['denise', 'flavio'].filter((p) => !jaAplicou.has(p) && doses[p])
-      if (pendentes.length > 0 && agoraMin >= 8 * 60 && agoraMin <= 21 * 60) {
+      if (pendentes.length > 0 && lembraOuCobra('09:00', 21 * 60)) {
         const nomes = pendentes.map((p) => `${p === 'denise' ? 'sua' : 'do Flávio'} (${doses[p]}mg)`).join(' e ')
         avisos.push(`💉 Hoje é dia de aplicar a tirzepatida — falta registrar a aplicação ${nomes}. Me avise quando aplicar.`)
       }
