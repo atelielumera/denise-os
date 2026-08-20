@@ -68,7 +68,7 @@ export async function transcribeAudio(base64, mediaType) {
   return (geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
 }
 
-export async function askLuna(systemPrompt, userContent) {
+export async function askLuna(systemPrompt, userContent, history) {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY nao configurada.')
   const anthropicResp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -79,7 +79,7 @@ export async function askLuna(systemPrompt, userContent) {
       max_tokens: 4096,
       output_config: { effort: 'low' },
       system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }]
+      messages: [...(Array.isArray(history) ? history : []), { role: 'user', content: userContent }]
     })
   })
   const data = await anthropicResp.json()
