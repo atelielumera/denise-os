@@ -238,13 +238,19 @@ function Home(){const navigate=useNavigate();
     const icon=ICONES_CAT_HOME[tema]||'📌'
     const bloco=itemsHojeHome.filter(({item})=>item.cat===tema).sort((a,b)=>a.item.t.localeCompare(b.item.t))
     const extraCasa=tema==='Casa'?casaPendentesHome:[]
-    if(bloco.length===0&&extraCasa.length===0)return null
+    const resumoEspiritual=tema==='Espiritual'?(()=>{
+      const devs=lerDevocionais()
+      const planosLeitura=lerPlanosLeituraBiblia()
+      return {feitoHoje:devs.some((e:any)=>e.data===hojeIsoHome),seq:calcularSequenciaDevocional(devs),leituraHoje:planosLeitura[0]?.leituraAtual||''}
+    })():null
+    if(bloco.length===0&&extraCasa.length===0&&!resumoEspiritual)return null
     return(<div style={{gridColumn:'span 3',background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18,display:'flex',flexDirection:'column' as const}}>
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
         <span style={{fontSize:16}}>{icon}</span>
         <span style={{fontWeight:800,fontSize:14,color:cor}}>{tema}</span>
         <span style={{fontSize:11,color:'rgba(255,255,255,.3)'}}>({bloco.length+extraCasa.length})</span>
       </div>
+      {resumoEspiritual&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.6)',marginBottom:8,paddingBottom:8,borderBottom:`1px solid ${C.line}`}}>🙏 Devocional: {resumoEspiritual.feitoHoje?'Feito ✓':'Pendente'} · 🔥 {resumoEspiritual.seq}d{resumoEspiritual.leituraHoje?` · 📖 ${resumoEspiritual.leituraHoje}`:''}</div>}
       <div style={{maxHeight:225,overflowY:'auto' as const,flex:1}}>
         {bloco.map(({item,i})=>{
           const feito=rotinaDoneIdx.has(i)
@@ -277,6 +283,7 @@ function Home(){const navigate=useNavigate();
     }).filter(Boolean) as {hora:string,nome:string,cor:string}[]
     return [...locais,...google].sort((a,b)=>(a.hora||'').localeCompare(b.hora||''))
   })()
+  const versiculoHoje=versiculoDoDia()
   void tick
   return(<div style={{padding:'20px 22px 40px'}}>
     {showFam&&<ModalFam onClose={()=>{setShowFam(false);forceRefresh()}}/>}
@@ -289,7 +296,7 @@ function Home(){const navigate=useNavigate();
     <div style={{display:'flex',flexWrap:'wrap',gap:14,alignItems:'flex-start',marginBottom:18}}>
       <div><h1 style={{fontSize:25,fontWeight:800,margin:0}}>{g}, Denise! ☀️</h1><div style={{color:'rgba(255,255,255,.6)',fontSize:13,marginTop:5,display:'flex',gap:9,flexWrap:'wrap',alignItems:'center'}}><span style={{textTransform:'capitalize' as const}}>{today}</span><span onClick={editarLocal} style={{cursor:'pointer',background:C.s,border:`1px solid ${C.line}`,padding:'3px 10px',borderRadius:20,fontSize:12,display:'inline-flex',alignItems:'center',gap:5}}>📍 {localNome||'Minha localização'} <span style={{fontSize:10,opacity:.6}}>✎</span></span><span style={{background:C.s,border:`1px solid ${C.line}`,padding:'3px 10px',borderRadius:20,fontSize:12}}>☀️ {climaTemp!==null?`${climaTemp}°C`:'—'}</span></div></div>
       <div style={{marginLeft:'auto',display:'flex',flexDirection:'column' as const,gap:4}}>
-        <div style={{background:`linear-gradient(135deg,${C.s2},${C.s})`,border:`1px solid ${C.line}`,borderRadius:16,padding:'13px 16px',maxWidth:360,display:'flex',gap:11}}><span style={{fontSize:22,color:C.acc2}}>"</span><div><p style={{fontSize:13,fontStyle:'italic',margin:0}}>Tudo posso naquele que me fortalece.</p><span style={{fontSize:11,color:'#7d7d90'}}>Filipenses 4:13</span></div></div>
+        <div style={{background:`linear-gradient(135deg,${C.s2},${C.s})`,border:`1px solid ${C.line}`,borderRadius:16,padding:'13px 16px',maxWidth:360,display:'flex',gap:11}}><span style={{fontSize:22,color:C.acc2}}>"</span><div><p style={{fontSize:13,fontStyle:'italic',margin:0}}>{versiculoHoje.texto}</p><span style={{fontSize:11,color:'#7d7d90'}}>{versiculoHoje.ref}</span></div></div>
         <div style={{fontSize:10.5,color:'rgba(255,255,255,.35)',display:'flex',alignItems:'center',gap:5}}>🔮 Versículo do dia · Atualiza diariamente <span title="Um novo versículo aparece aqui todos os dias.">ⓘ</span></div>
       </div>
       <div style={{display:'flex',gap:9,alignItems:'center'}}><button style={{width:40,height:40,borderRadius:11,background:C.s,border:`1px solid ${C.line}`,color:'rgba(255,255,255,.6)',cursor:'pointer',fontSize:17}}>🔔</button><button onClick={()=>setShowEditRotina(true)} style={{display:'inline-flex',alignItems:'center',gap:7,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',fontWeight:700,fontSize:13,padding:'10px 14px',borderRadius:11,border:'none',cursor:'pointer'}}>⚡ Ação rápida</button><Avatar id="denise" label="D" size={40} radius={12}/></div>
@@ -1235,6 +1242,88 @@ function Agenda(){
     </div>}
   </div>)
 }
+function gerarId(prefixo:string){return prefixo+'_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+
+const VERSICULOS_POOL:[string,string][]=[
+  ['Ensina-me a fazer a tua vontade, pois tu és o meu Deus; guie-me a tua boa vontade pela terra da retidão.','Salmos 143:10'],
+  ['Tudo posso naquele que me fortalece.','Filipenses 4:13'],
+  ['O Senhor é o meu pastor; nada me faltará.','Salmos 23:1'],
+  ['Entrega o teu caminho ao Senhor; confia nele, e o mais ele fará.','Salmos 37:5'],
+  ['Porque eu bem sei os pensamentos que penso de vós, diz o Senhor; pensamentos de paz, e não de mal, para vos dar o fim que esperais.','Jeremias 29:11'],
+  ['Não temas, porque eu sou contigo; não te assombres, porque eu sou o teu Deus.','Isaías 41:10'],
+  ['Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento.','Provérbios 3:5'],
+  ['O Senhor é a minha luz e a minha salvação; a quem temerei?','Salmos 27:1'],
+  ['Buscai primeiro o Reino de Deus, e a sua justiça, e todas estas coisas vos serão acrescentadas.','Mateus 6:33'],
+  ['Alegrai-vos sempre no Senhor; outra vez digo, alegrai-vos.','Filipenses 4:4'],
+  ['O Senhor é bom, um refúgio no dia da angústia; e conhece os que confiam nele.','Naum 1:7'],
+  ['Ainda que eu andasse pelo vale da sombra da morte, não temeria mal algum, porque tu estás comigo.','Salmos 23:4'],
+  ['Sede fortes e corajosos; não temais, nem vos atemorizeis diante deles, porque o Senhor teu Deus é o que vai contigo.','Deuteronômio 31:6'],
+  ['Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei.','Mateus 11:28'],
+  ['A alegria do Senhor é a vossa força.','Neemias 8:10'],
+  ['Lancem sobre ele toda a vossa ansiedade, porque ele tem cuidado de vós.','1 Pedro 5:7'],
+  ['Bem-aventurados os que choram, porque eles serão consolados.','Mateus 5:4'],
+  ['O Senhor está perto dos que têm o coração quebrantado, e salva os contritos de espírito.','Salmos 34:18'],
+  ['Não andeis ansiosos por coisa alguma; em tudo, porém, sejam conhecidas as vossas petições diante de Deus.','Filipenses 4:6'],
+  ['Aquietai-vos e sabei que eu sou Deus.','Salmos 46:10'],
+  ['Deleita-te no Senhor, e ele te concederá os desejos do teu coração.','Salmos 37:4'],
+  ['Porque para Deus nada é impossível.','Lucas 1:37'],
+  ['O amor é sofredor, é benigno; o amor não é invejoso; o amor não trata com leviandade, não se ensoberbece.','1 Coríntios 13:4'],
+  ['Graças a Deus pelo seu dom inefável!','2 Coríntios 9:15'],
+  ['Este é o dia que fez o Senhor; alegremo-nos, e regozijemo-nos nele.','Salmos 118:24'],
+  ['Não vos inquieteis, pois, pelo dia de amanhã, porque o dia de amanhã cuidará de si mesmo.','Mateus 6:34'],
+  ['Perto está o Senhor de todos os que o invocam, de todos os que o invocam em verdade.','Salmos 145:18'],
+  ['Sede fortes, e esforce-se o vosso coração, vós todos que esperais no Senhor.','Salmos 31:24'],
+  ['Porque eu, o Senhor teu Deus, te tomo pela tua mão direita e te digo: não temas, eu te ajudo.','Isaías 41:13'],
+  ['Tudo o que fizerem, façam de todo o coração, como para o Senhor, e não para os homens.','Colossenses 3:23'],
+  ['O Senhor é o meu rochedo, a minha fortaleza e o meu libertador.','Salmos 18:2'],
+  ['Ele dá força ao cansado e multiplica as forças ao que não tem nenhum vigor.','Isaías 40:29'],
+  ['Porque a palavra de Deus é viva, e eficaz, e mais penetrante do que espada alguma de dois gumes.','Hebreus 4:12'],
+  ['Mas os que esperam no Senhor renovarão as suas forças; subirão com asas como águias.','Isaías 40:31'],
+  ['Fiel é Deus, pelo qual fostes chamados para a comunhão de seu Filho Jesus Cristo, nosso Senhor.','1 Coríntios 1:9'],
+  ['O amor de Deus é derramado em nossos corações pelo Espírito Santo que nos foi dado.','Romanos 5:5'],
+  ['Sabemos que todas as coisas contribuem juntamente para o bem daqueles que amam a Deus.','Romanos 8:28'],
+  ['Se Deus é por nós, quem será contra nós?','Romanos 8:31'],
+  ['O justo florescerá como a palmeira; crescerá como o cedro no Líbano.','Salmos 92:12'],
+  ['Serena a tua alma, e ela há de ser doce como o mel, diz o Senhor.','Provérbios 24:14'],
+]
+function versiculoDoDia():{texto:string,ref:string}{
+  const iso=isoBR(new Date())
+  const dias=Math.floor(new Date(iso+'T00:00:00Z').getTime()/86400000)
+  const idx=((dias%VERSICULOS_POOL.length)+VERSICULOS_POOL.length)%VERSICULOS_POOL.length
+  const [texto,ref]=VERSICULOS_POOL[idx]
+  return {texto,ref}
+}
+
+function lerDevocionais():any[]{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}}
+function calcularSequenciaDevocional(entries:any[]):number{
+  const dias=new Set(entries.map((e:any)=>e.data))
+  let seq=0
+  const cursor=new Date()
+  const hoje=isoBR(cursor)
+  if(!dias.has(hoje))cursor.setDate(cursor.getDate()-1)
+  while(dias.has(isoBR(cursor))){seq++;cursor.setDate(cursor.getDate()-1)}
+  return seq
+}
+function calcularMelhorSequenciaDevocional(entries:any[]):number{
+  const dias=Array.from(new Set(entries.map((e:any)=>e.data))).sort()
+  let melhor=0,atual=0,anterior:string|null=null
+  dias.forEach(d=>{
+    if(anterior){
+      const diff=Math.round((new Date(d+'T12:00:00').getTime()-new Date(anterior+'T12:00:00').getTime())/86400000)
+      atual=diff===1?atual+1:1
+    }else atual=1
+    melhor=Math.max(melhor,atual)
+    anterior=d
+  })
+  return melhor
+}
+
+function lerPedidosOracao():any[]{try{return JSON.parse(localStorage.getItem('dos_pedidos_oracao')||'[]')}catch{return []}}
+function salvarPedidosOracao(lista:any[]){localStorage.setItem('dos_pedidos_oracao',JSON.stringify(lista))}
+
+function lerPlanosLeituraBiblia():any[]{try{return JSON.parse(localStorage.getItem('dos_planos_biblia')||'[]')}catch{return []}}
+function salvarPlanosLeituraBiblia(lista:any[]){localStorage.setItem('dos_planos_biblia',JSON.stringify(lista))}
+
 function Espiritual(){
   const PERGUNTAS_VAZIAS={mandamento:'',promessa:'',pecado:'',aplicacao:'',novoDeus:'',quem:'',oque:'',quando:'',onde:'',porque:''}
   const [ref,setRef]=React.useState('')
@@ -1243,29 +1332,86 @@ function Espiritual(){
   const [apren,setApren]=React.useState('')
   const [saved,setSaved]=React.useState(false)
   const [expandido,setExpandido]=React.useState<number|null>(null)
-  const [entries,setEntries]=React.useState<any[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})
+  const [entries,setEntries]=React.useState<any[]>(()=>lerDevocionais())
+  const [buscaDevoc,setBuscaDevoc]=React.useState('')
+  const [filtroMes,setFiltroMes]=React.useState('')
+  const [filtroPeriodo,setFiltroPeriodo]=React.useState<'todos'|'30'|'90'|'ano'>('todos')
+  const [pedidos,setPedidos]=React.useState<any[]>(()=>lerPedidosOracao())
+  const [novoPedido,setNovoPedido]=React.useState({pedido:'',pessoaTema:'',data:'',observacoes:''})
+  const [respondendoId,setRespondendoId]=React.useState<string|null>(null)
+  const [respostaForm,setRespostaForm]=React.useState({dataResposta:'',testemunho:''})
+  const [planos,setPlanos]=React.useState<any[]>(()=>lerPlanosLeituraBiblia())
+  const [mostrarNovoPlano,setMostrarNovoPlano]=React.useState(false)
+  const [novoPlanoNome,setNovoPlanoNome]=React.useState('')
+  const [novoPlanoTotal,setNovoPlanoTotal]=React.useState('')
   function isoHoje(){return isoBR(new Date())}
   function setPergunta(campo:string,valor:string){setPerguntas(p=>({...p,[campo]:valor}))}
   function salvar(){
     const hoje=isoHoje()
-    const reg={data:hoje,ref,...perguntas,grat,apren}
+    const reg={data:hoje,horario:new Date().toTimeString().slice(0,5),pessoa:'denise',ref,...perguntas,grat,apren}
     const outros=entries.filter((e:any)=>e.data!==hoje)
     const n=[reg,...outros].sort((a:any,b:any)=>b.data.localeCompare(a.data))
     setEntries(n);localStorage.setItem('dos_devocionais',JSON.stringify(n))
-    setSaved(true);setPerguntas(PERGUNTAS_VAZIAS)
+    setSaved(true);setPerguntas(PERGUNTAS_VAZIAS);setRef('');setGrat('');setApren('')
   }
-  const diasComEntrada=new Set(entries.map((e:any)=>e.data))
-  let sequencia=0
-  const dcursor=new Date()
-  if(!diasComEntrada.has(isoHoje()))dcursor.setDate(dcursor.getDate()-1)
-  while(diasComEntrada.has(isoBR(dcursor))){sequencia++;dcursor.setDate(dcursor.getDate()-1)}
+  const sequencia=calcularSequenciaDevocional(entries)
+  const melhorSequencia=calcularMelhorSequenciaDevocional(entries)
   const anoAtual=String(new Date().getFullYear())
   const diasNoAno=entries.filter((e:any)=>e.data.startsWith(anoAtual)).length
-  const pctAno=Math.min(100,Math.round(diasNoAno/365*100))
+  const diasDesdeInicioAno=Math.max(1,Math.round((Date.now()-new Date(`${anoAtual}-01-01T00:00:00`).getTime())/86400000)+1)
+  const pctConsistencia=Math.min(100,Math.round(diasNoAno/diasDesdeInicioAno*100))
+  const {texto:versTexto,ref:versRef}=versiculoDoDia()
+
+  const mesesDisponiveis=Array.from(new Set(entries.map((e:any)=>e.data.slice(0,7)))).sort().reverse()
+  const limitePeriodo=filtroPeriodo==='30'?isoBR(new Date(Date.now()-30*86400000)):filtroPeriodo==='90'?isoBR(new Date(Date.now()-90*86400000)):filtroPeriodo==='ano'?`${anoAtual}-01-01`:null
+  const buscaLower=buscaDevoc.trim().toLowerCase()
+  const entriesFiltradas=entries.filter((e:any)=>{
+    if(filtroMes&&!e.data.startsWith(filtroMes))return false
+    if(limitePeriodo&&e.data<limitePeriodo)return false
+    if(buscaLower){
+      const alvo=[e.ref,e.apren,e.grat,e.mandamento,e.promessa,e.pecado,e.aplicacao,e.novoDeus].filter(Boolean).join(' ').toLowerCase()
+      if(!alvo.includes(buscaLower))return false
+    }
+    return true
+  }).sort((a:any,b:any)=>b.data.localeCompare(a.data))
+
+  function salvarPedidosLocal(lista:any[]){setPedidos(lista);salvarPedidosOracao(lista)}
+  function addPedido(){
+    if(!novoPedido.pedido.trim())return
+    const novo={id:gerarId('oracao'),pedido:novoPedido.pedido.trim(),pessoaTema:novoPedido.pessoaTema,data:novoPedido.data||isoHoje(),observacoes:novoPedido.observacoes,status:'em_oracao',dataResposta:'',testemunho:''}
+    salvarPedidosLocal([novo,...pedidos])
+    setNovoPedido({pedido:'',pessoaTema:'',data:'',observacoes:''})
+  }
+  function abrirResposta(id:string){setRespondendoId(id);setRespostaForm({dataResposta:isoHoje(),testemunho:''})}
+  function confirmarResposta(){
+    if(!respondendoId)return
+    salvarPedidosLocal(pedidos.map((p:any)=>p.id===respondendoId?{...p,status:'respondida',dataResposta:respostaForm.dataResposta,testemunho:respostaForm.testemunho}:p))
+    setRespondendoId(null)
+  }
+  const pedidosEmOracao=pedidos.filter((p:any)=>p.status!=='respondida')
+  const pedidosRespondidos=pedidos.filter((p:any)=>p.status==='respondida')
+
+  function salvarPlanosLocal(lista:any[]){setPlanos(lista);salvarPlanosLeituraBiblia(lista)}
+  function addPlano(){
+    if(!novoPlanoNome.trim()||!novoPlanoTotal)return
+    const novo={id:gerarId('plano'),nome:novoPlanoNome.trim(),total:Number(novoPlanoTotal)||0,concluidas:0,leituraAtual:'',historico:[]}
+    salvarPlanosLocal([...planos,novo])
+    setNovoPlanoNome('');setNovoPlanoTotal('');setMostrarNovoPlano(false)
+  }
+  function atualizarLeituraAtual(id:string,texto:string){
+    salvarPlanosLocal(planos.map((p:any)=>p.id===id?{...p,leituraAtual:texto}:p))
+  }
+  function concluirLeitura(id:string){
+    const p=planos.find((pl:any)=>pl.id===id)
+    if(!p||!p.leituraAtual.trim())return
+    const historico=[{data:isoHoje(),texto:p.leituraAtual},...(p.historico||[])]
+    salvarPlanosLocal(planos.map((pl:any)=>pl.id===id?{...pl,concluidas:pl.concluidas+1,historico,leituraAtual:''}:pl))
+  }
+
   return(<div style={{padding:'24px 28px'}}>
     <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Espiritual</h1>
     <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Devocional diário · 🔥 Sequência de {sequencia} dia{sequencia===1?'':'s'}</p>
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
       <Card title="Devocional de hoje">
         {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Devocional salvo!</div>}
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Referência bíblica</label>
@@ -1288,36 +1434,122 @@ function Espiritual(){
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Aprendizado</label>
         <input value={apren} onChange={e=>setApren(e.target.value)} placeholder="O que levo pro dia" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/>
         <button onClick={salvar} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>✓ Salvar devocional</button>
-        {entries.length>0&&<div style={{marginTop:16,borderTop:`1px solid ${C.line}`,paddingTop:12}}>
-          <div style={{fontSize:12,fontWeight:700,marginBottom:8,color:'rgba(255,255,255,.6)'}}>Histórico ({entries.length} dia{entries.length===1?'':'s'})</div>
-          {entries.slice(0,30).map((e:any,i:number)=>(<div key={i} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+      </Card>
+      <div>
+        <Card title="Consistência espiritual">
+          {entries.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum devocional registrado ainda.</div>:<>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12.5,color:'rgba(255,255,255,.6)'}}><span>Dias com devocional em {anoAtual}</span><span>{diasNoAno}</span></div>
+            <div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden',marginTop:8,marginBottom:14}}><div style={{height:'100%',width:`${pctConsistencia}%`,borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+              <span style={{color:C.warn}}>🔥 Sequência atual: {sequencia} dia{sequencia===1?'':'s'}</span>
+              <span style={{color:C.acc2}}>🏆 Melhor: {melhorSequencia} dia{melhorSequencia===1?'':'s'}</span>
+            </div>
+          </>}
+        </Card>
+        <div style={{marginTop:16}}><Card title="Versículo do dia"><p style={{fontSize:13,fontStyle:'italic',lineHeight:1.6}}>"{versTexto}"</p><span style={{fontSize:12,color:C.acc2}}>{versRef}</span></Card></div>
+        <div style={{marginTop:16}}><Card title="Plano de leitura">
+          {planos.length===0&&!mostrarNovoPlano&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'6px 0 12px'}}>Nenhum plano de leitura cadastrado ainda.</div>}
+          {planos.map((p:any)=>{
+            const pct=p.total>0?Math.min(100,Math.round(p.concluidas/p.total*100)):0
+            return(<div key={p.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.line}`}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,fontWeight:700,marginBottom:4}}><span>{p.nome}</span><span style={{color:'rgba(255,255,255,.5)',fontWeight:400}}>{p.concluidas} / {p.total}</span></div>
+              <div style={{height:8,borderRadius:5,background:C.s3,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${pct}%`,borderRadius:5,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
+              <label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Leitura de hoje</label>
+              <input value={p.leituraAtual} onChange={e=>atualizarLeituraAtual(p.id,e.target.value)} placeholder="Ex: Salmos 90–92" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,marginBottom:8}}/>
+              <button onClick={()=>concluirLeitura(p.id)} style={{width:'100%',background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>✓ Marcar leitura como concluída</button>
+            </div>)
+          })}
+          {mostrarNovoPlano?<div>
+            <input value={novoPlanoNome} onChange={e=>setNovoPlanoNome(e.target.value)} placeholder="Nome do plano (ex: Bíblia em 1 ano)" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,marginBottom:8}}/>
+            <input type="number" value={novoPlanoTotal} onChange={e=>setNovoPlanoTotal(e.target.value)} placeholder="Total de leituras (ex: 365)" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,marginBottom:8}}/>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={addPlano} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:9,padding:'8px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>Criar</button>
+              <button onClick={()=>setMostrarNovoPlano(false)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px 12px',fontSize:12.5,cursor:'pointer'}}>Cancelar</button>
+            </div>
+          </div>:<button onClick={()=>setMostrarNovoPlano(true)} style={{width:'100%',background:'transparent',border:`1px dashed ${C.line}`,color:C.acc2,borderRadius:9,padding:'8px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Novo plano</button>}
+        </Card></div>
+      </div>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+      <Card title="Pedidos de oração">
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+          <input value={novoPedido.pedido} onChange={e=>setNovoPedido(p=>({...p,pedido:e.target.value}))} placeholder="Pedido" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
+          <input value={novoPedido.pessoaTema} onChange={e=>setNovoPedido(p=>({...p,pessoaTema:e.target.value}))} placeholder="Pessoa/tema" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:8,marginBottom:8}}>
+          <input type="date" value={novoPedido.data} onChange={e=>setNovoPedido(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/>
+          <input value={novoPedido.observacoes} onChange={e=>setNovoPedido(p=>({...p,observacoes:e.target.value}))} placeholder="Observações" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
+        </div>
+        <button onClick={addPedido} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,cursor:'pointer',marginBottom:14}}>+ Adicionar pedido</button>
+
+        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.6)',marginBottom:6}}>Em oração ({pedidosEmOracao.length})</div>
+        <div style={{maxHeight:180,overflowY:'auto' as const,marginBottom:14}}>
+          {pedidosEmOracao.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.3)',padding:'6px 0'}}>Nenhum pedido em aberto.</div>}
+          {pedidosEmOracao.map((p:any)=>(<div key={p.id} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}><span style={{fontWeight:700,fontSize:12.5}}>{p.pedido}</span><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{p.data}</span></div>
+            {p.pessoaTema&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>{p.pessoaTema}</div>}
+            {p.observacoes&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>{p.observacoes}</div>}
+            {respondendoId===p.id?<div style={{marginTop:8,background:C.s2,borderRadius:9,padding:10}}>
+              <label style={{fontSize:10.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>Data da resposta</label>
+              <input type="date" value={respostaForm.dataResposta} onChange={e=>setRespostaForm(f=>({...f,dataResposta:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 8px',color:'#fff',fontSize:12,marginBottom:6,colorScheme:'dark'}}/>
+              <label style={{fontSize:10.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>Testemunho</label>
+              <input value={respostaForm.testemunho} onChange={e=>setRespostaForm(f=>({...f,testemunho:e.target.value}))} placeholder="Como Deus respondeu" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 8px',color:'#fff',fontSize:12,marginBottom:8}}/>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={confirmarResposta} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:7,padding:'6px',fontSize:11.5,fontWeight:700,cursor:'pointer'}}>Confirmar</button>
+                <button onClick={()=>setRespondendoId(null)} style={{background:C.s3,border:'none',color:'#fff',borderRadius:7,padding:'6px 10px',fontSize:11.5,cursor:'pointer'}}>Cancelar</button>
+              </div>
+            </div>:<button onClick={()=>abrirResposta(p.id)} style={{marginTop:4,background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',color:C.ok,borderRadius:7,padding:'4px 9px',fontSize:11,cursor:'pointer'}}>✓ Marcar como respondida</button>}
+          </div>))}
+        </div>
+
+        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.6)',marginBottom:6}}>Orações respondidas ({pedidosRespondidos.length})</div>
+        <div style={{maxHeight:180,overflowY:'auto' as const}}>
+          {pedidosRespondidos.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.3)',padding:'6px 0'}}>Nenhuma oração respondida ainda.</div>}
+          {pedidosRespondidos.map((p:any)=>(<div key={p.id} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}><span style={{fontWeight:700,fontSize:12.5,color:C.ok}}>{p.pedido}</span><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{p.data} → {p.dataResposta}</span></div>
+            {p.testemunho&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>{p.testemunho}</div>}
+          </div>))}
+        </div>
+      </Card>
+
+      <Card title="Meus devocionais">
+        <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap' as const}}>
+          <input value={buscaDevoc} onChange={e=>setBuscaDevoc(e.target.value)} placeholder="🔎 Buscar..." style={{flex:1,minWidth:120,background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:9,padding:'7px 10px',color:'#fff',fontSize:12.5}}/>
+          <select value={filtroMes} onChange={e=>setFiltroMes(e.target.value)} style={{background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:9,padding:'7px 8px',color:'#fff',fontSize:12}}>
+            <option value="">Todos os meses</option>
+            {mesesDisponiveis.map(m=>(<option key={m} value={m}>{m}</option>))}
+          </select>
+          <select value={filtroPeriodo} onChange={e=>setFiltroPeriodo(e.target.value as any)} style={{background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:9,padding:'7px 8px',color:'#fff',fontSize:12}}>
+            <option value="todos">Todo período</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="ano">Este ano</option>
+          </select>
+        </div>
+        {entries.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum devocional registrado ainda.</div>}
+        {entries.length>0&&entriesFiltradas.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nada encontrado com esses filtros.</div>}
+        <div style={{maxHeight:400,overflowY:'auto' as const}}>
+          {entriesFiltradas.map((e:any,i:number)=>(<div key={i} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
             <div onClick={()=>setExpandido(x=>x===i?null:i)} style={{display:'flex',justifyContent:'space-between' as const,marginBottom:2,cursor:'pointer'}}><span style={{fontWeight:700,fontSize:12.5,color:C.acc2}}>{e.ref||'—'}</span><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{e.data} {expandido===i?'▲':'▼'}</span></div>
-            {e.grat&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>Gratidão: {e.grat}</div>}
+            {e.apren&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>{e.apren}</div>}
             {expandido===i&&<div style={{marginTop:8,fontSize:11.5,color:'rgba(255,255,255,.6)',display:'grid',gap:5}}>
               {e.mandamento&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Mandamento a obedecer:</b> {e.mandamento}</div>}
               {e.promessa&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Promessa a reivindicar:</b> {e.promessa}</div>}
               {e.pecado&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Pecado a evitar:</b> {e.pecado}</div>}
               {e.aplicacao&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Aplicação a fazer:</b> {e.aplicacao}</div>}
               {e.novoDeus&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Algo novo sobre Deus:</b> {e.novoDeus}</div>}
+              {e.grat&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Gratidão:</b> {e.grat}</div>}
               {e.quem&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Quem:</b> {e.quem}</div>}
               {e.oque&&<div><b style={{color:'rgba(255,255,255,.4)'}}>O quê:</b> {e.oque}</div>}
               {e.quando&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Quando:</b> {e.quando}</div>}
               {e.onde&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Onde:</b> {e.onde}</div>}
               {e.porque&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Por quê:</b> {e.porque}</div>}
-              {e.apren&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Aprendizado:</b> {e.apren}</div>}
               {e.reflex&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Reflexão (registro antigo):</b> {e.reflex}</div>}
+              {e.horario&&<div style={{color:'rgba(255,255,255,.35)'}}>Registrado às {e.horario}</div>}
             </div>}
           </div>))}
-        </div>}
+        </div>
       </Card>
-      <div>
-        <Card title="Plano de leitura">
-          <div style={{display:'flex',justifyContent:'space-between',fontSize:12.5,color:'rgba(255,255,255,.6)'}}><span>Dias com devocional em {anoAtual}</span><span>{diasNoAno} / 365</span></div>
-          <div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden',marginTop:8,marginBottom:14}}><div style={{height:'100%',width:`${pctAno}%`,borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
-          <div style={{fontSize:13,color:C.warn}}>🔥 Sequência: {sequencia} dia{sequencia===1?'':'s'}</div>
-        </Card>
-        <div style={{marginTop:16}}><Card title="Versículo do dia"><p style={{fontSize:13,fontStyle:'italic',lineHeight:1.6}}>"Ensina-me a fazer a tua vontade, pois tu és o meu Deus."</p><span style={{fontSize:12,color:C.acc2}}>Salmos 143:10</span></Card></div>
-      </div>
     </div>
   </div>)
 }
@@ -2556,6 +2788,10 @@ function Assistente(){
       sequencia_treinos_dias:sequencia(diasUnicos(treinosI)),
       sequencia_leitura_dias:sequencia(diasUnicos(leiturasI)),
       sequencia_devocional_dias:sequencia(diasUnicos(devI)),
+      devocional_feito_hoje:devI.some((e:any)=>e.data===hojeIso),
+      devocionais_recentes:devI.slice(0,14),
+      pedidos_oracao:lerPedidosOracao(),
+      planos_leitura_biblica:lerPlanosLeituraBiblia().map((p:any)=>({nome:p.nome,concluidas:p.concluidas,total:p.total,leitura_de_hoje:p.leituraAtual})),
       livro_atual:livroI,
       contas_vencendo_7dias:contasVencendo.map((c:any)=>({nome:c.n,vencimento:c.venc})),
       agenda_proximos_7dias:agendaProximos7Dias,

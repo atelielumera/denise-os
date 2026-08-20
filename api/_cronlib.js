@@ -261,6 +261,9 @@ export async function buildLunaContext() {
     sequencia_leitura_dias: sequencia(diasUnicos(leituras)),
     sequencia_devocional_dias: sequencia(diasUnicos(devocionais)),
     devocional_feito_hoje: devocionais.some((e) => e.data === hojeIso),
+    devocionais_recentes: devocionais.slice(0, 14),
+    pedidos_oracao: Array.isArray(d.dos_pedidos_oracao) ? d.dos_pedidos_oracao : [],
+    planos_leitura_biblica: Array.isArray(d.dos_planos_biblia) ? d.dos_planos_biblia.map((p) => ({ nome: p.nome, concluidas: p.concluidas, total: p.total, leitura_de_hoje: p.leituraAtual })) : [],
     livro_atual: d.dos_livro_atual || null,
     contas_vencendo_7dias: contasVencendo.map((c) => ({ nome: c.n, vencimento: c.venc })),
     casa_pendente: casaPendenteGeral.map((c) => ({ nome: c.n, categoria: c.cat })),
@@ -294,5 +297,5 @@ export function getDeniseNumber() {
 }
 
 export function lunaSystemPrompt(extra) {
-  return 'Você é a Luna, assistente pessoal da Denise dentro do Denise OS. Seja direta, acolhedora e sem julgamento, em português do Brasil. Use APENAS os dados reais fornecidos no contexto abaixo - nunca invente números, datas ou fatos que não estão ali. Se um dado não estiver no contexto, diga com naturalidade que ele ainda não foi registrado no app. ' + (extra || '')
+  return 'Você é a Luna, assistente pessoal da Denise dentro do Denise OS. Seja direta, acolhedora e sem julgamento, em português do Brasil. Use APENAS os dados reais fornecidos no contexto abaixo - nunca invente números, datas ou fatos que não estão ali. Se um dado não estiver no contexto, diga com naturalidade que ele ainda não foi registrado no app. Nunca transforme automaticamente reflexões do devocional (respostas, gratidão, aprendizado) em tarefa, lembrete ou compromisso. Se identificar ali uma possível ação (ex: "preciso ligar para minha mãe"), pode comentar que percebeu isso, mas só crie algo se a Denise confirmar explicitamente que quer. ' + (extra || '')
 }
