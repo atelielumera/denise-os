@@ -1324,6 +1324,31 @@ function salvarPedidosOracao(lista:any[]){localStorage.setItem('dos_pedidos_orac
 function lerPlanosLeituraBiblia():any[]{try{return JSON.parse(localStorage.getItem('dos_planos_biblia')||'[]')}catch{return []}}
 function salvarPlanosLeituraBiblia(lista:any[]){localStorage.setItem('dos_planos_biblia',JSON.stringify(lista))}
 
+const MESES_ABREV_PT=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+const DIAS_SEMANA_ABREV_PT=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom']
+function construirHeatmapAno(ano:number){
+  const inicio=new Date(ano,0,1)
+  const fim=new Date(ano,11,31)
+  const diaSemanaInicio=(inicio.getDay()+6)%7
+  const cursor=new Date(inicio)
+  cursor.setDate(cursor.getDate()-diaSemanaInicio)
+  const semanas:{data:string,mes:number}[][]=[]
+  const mesesLabel:{mes:number,col:number}[]=[]
+  let ultimoMes=-1
+  let col=0
+  while(cursor<=fim){
+    const semana:{data:string,mes:number}[]=[]
+    for(let d=0;d<7;d++){
+      semana.push({data:toISOAg(cursor),mes:cursor.getMonth()})
+      cursor.setDate(cursor.getDate()+1)
+    }
+    if(semana[0].mes!==ultimoMes){mesesLabel.push({mes:semana[0].mes,col});ultimoMes=semana[0].mes}
+    semanas.push(semana)
+    col++
+  }
+  return {semanas,mesesLabel}
+}
+
 function Espiritual(){
   const PERGUNTAS_VAZIAS={mandamento:'',promessa:'',pecado:'',aplicacao:'',novoDeus:'',quem:'',oque:'',quando:'',onde:'',porque:''}
   const [ref,setRef]=React.useState('')
@@ -1344,6 +1369,11 @@ function Espiritual(){
   const [mostrarNovoPlano,setMostrarNovoPlano]=React.useState(false)
   const [novoPlanoNome,setNovoPlanoNome]=React.useState('')
   const [novoPlanoTotal,setNovoPlanoTotal]=React.useState('')
+  const [planoExpandidoId,setPlanoExpandidoId]=React.useState<string|null>(null)
+  const [mostrarNovoPedido,setMostrarNovoPedido]=React.useState(false)
+  const [pedidoMenuId,setPedidoMenuId]=React.useState<string|null>(null)
+  const [mostrarTodosPedidos,setMostrarTodosPedidos]=React.useState(false)
+  const [mostrarTodosDevocionais,setMostrarTodosDevocionais]=React.useState(false)
   function isoHoje(){return isoBR(new Date())}
   function setPergunta(campo:string,valor:string){setPerguntas(p=>({...p,[campo]:valor}))}
   function salvar(){
@@ -1356,11 +1386,13 @@ function Espiritual(){
   }
   const sequencia=calcularSequenciaDevocional(entries)
   const melhorSequencia=calcularMelhorSequenciaDevocional(entries)
-  const anoAtual=String(new Date().getFullYear())
+  const anoNum=new Date().getFullYear()
+  const anoAtual=String(anoNum)
   const diasNoAno=entries.filter((e:any)=>e.data.startsWith(anoAtual)).length
-  const diasDesdeInicioAno=Math.max(1,Math.round((Date.now()-new Date(`${anoAtual}-01-01T00:00:00`).getTime())/86400000)+1)
-  const pctConsistencia=Math.min(100,Math.round(diasNoAno/diasDesdeInicioAno*100))
+  const diasNoAnoTotal=((anoNum%4===0&&anoNum%100!==0)||anoNum%400===0)?366:365
   const {texto:versTexto,ref:versRef}=versiculoDoDia()
+  const diasComDevSet=new Set(entries.map((e:any)=>e.data))
+  const {semanas:heatmapSemanas,mesesLabel:heatmapMeses}=construirHeatmapAno(anoNum)
 
   const mesesDisponiveis=Array.from(new Set(entries.map((e:any)=>e.data.slice(0,7)))).sort().reverse()
   const limitePeriodo=filtroPeriodo==='30'?isoBR(new Date(Date.now()-30*86400000)):filtroPeriodo==='90'?isoBR(new Date(Date.now()-90*86400000)):filtroPeriodo==='ano'?`${anoAtual}-01-01`:null
@@ -1388,8 +1420,8 @@ function Espiritual(){
     salvarPedidosLocal(pedidos.map((p:any)=>p.id===respondendoId?{...p,status:'respondida',dataResposta:respostaForm.dataResposta,testemunho:respostaForm.testemunho}:p))
     setRespondendoId(null)
   }
-  const pedidosEmOracao=pedidos.filter((p:any)=>p.status!=='respondida')
-  const pedidosRespondidos=pedidos.filter((p:any)=>p.status==='respondida')
+  const pedidosOrdenados=[...pedidos].sort((a:any,b:any)=>b.data.localeCompare(a.data))
+  const pedidosPreview=mostrarTodosPedidos?pedidosOrdenados:pedidosOrdenados.slice(0,3)
 
   function salvarPlanosLocal(lista:any[]){setPlanos(lista);salvarPlanosLeituraBiblia(lista)}
   function addPlano(){
@@ -1410,13 +1442,12 @@ function Espiritual(){
 
   return(<div style={{padding:'24px 28px'}}>
     <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Espiritual</h1>
-    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Devocional diário · 🔥 Sequência de {sequencia} dia{sequencia===1?'':'s'}</p>
+    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Devocional diário · Conecte-se com Deus todos os dias</p>
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
       <Card title="Devocional de hoje">
         {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Devocional salvo!</div>}
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Referência bíblica</label>
         <input value={ref} onChange={e=>setRef(e.target.value)} placeholder="Ex: Salmos 143:10" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/>
-        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.6)',margin:'4px 0 8px'}}>Faça perguntas</div>
         {([
           ['mandamento','Existe um mandamento a obedecer?'],
           ['promessa','Uma promessa a reivindicar?'],
@@ -1426,7 +1457,7 @@ function Espiritual(){
         ] as [string,string][]).map(([campo,label])=>(
           <div key={campo} style={{marginBottom:10}}>
             <label style={{fontSize:11.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>{label}</label>
-            <input value={(perguntas as any)[campo]} onChange={e=>setPergunta(campo,e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 12px',color:'#fff',fontSize:13.5}}/>
+            <input value={(perguntas as any)[campo]} onChange={e=>setPergunta(campo,e.target.value)} placeholder="..." style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 12px',color:'#fff',fontSize:13.5}}/>
           </div>
         ))}
         <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Gratidão</label>
@@ -1436,27 +1467,58 @@ function Espiritual(){
         <button onClick={salvar} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>✓ Salvar devocional</button>
       </Card>
       <div>
-        <Card title="Consistência espiritual">
+        <Card title="📈 Consistência espiritual">
           {entries.length===0?<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum devocional registrado ainda.</div>:<>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:12.5,color:'rgba(255,255,255,.6)'}}><span>Dias com devocional em {anoAtual}</span><span>{diasNoAno}</span></div>
-            <div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden',marginTop:8,marginBottom:14}}><div style={{height:'100%',width:`${pctConsistencia}%`,borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
-              <span style={{color:C.warn}}>🔥 Sequência atual: {sequencia} dia{sequencia===1?'':'s'}</span>
-              <span style={{color:C.acc2}}>🏆 Melhor: {melhorSequencia} dia{melhorSequencia===1?'':'s'}</span>
+            <div style={{display:'flex',gap:28,marginBottom:16}}>
+              <div><div style={{fontSize:24,fontWeight:800}}>{diasNoAno}</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)',lineHeight:1.35}}>Dias com devocional<br/>/ {diasNoAnoTotal}</div></div>
+              <div><div style={{fontSize:24,fontWeight:800}}>{sequencia}</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)',lineHeight:1.35}}>Sequência atual<br/>dias</div></div>
+              <div><div style={{fontSize:24,fontWeight:800}}>{melhorSequencia}</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)',lineHeight:1.35}}>Melhor sequência<br/>dias</div></div>
+            </div>
+            <div style={{overflowX:'auto' as const}}>
+              <div style={{position:'relative' as const,width:24+heatmapSemanas.length*12,height:14}}>
+                {heatmapMeses.map((m,i)=>(<span key={i} style={{position:'absolute' as const,left:24+m.col*12,top:0,fontSize:9,color:'rgba(255,255,255,.4)'}}>{MESES_ABREV_PT[m.mes]}</span>))}
+              </div>
+              <div style={{display:'flex',gap:2}}>
+                <div style={{display:'flex',flexDirection:'column' as const,gap:2,width:22,flexShrink:0}}>
+                  {DIAS_SEMANA_ABREV_PT.map((d,i)=>(<div key={i} style={{height:10,fontSize:8,color:'rgba(255,255,255,.35)',display:'flex',alignItems:'center'}}>{d[0]}</div>))}
+                </div>
+                <div style={{display:'flex',gap:2}}>
+                  {heatmapSemanas.map((semana,si)=>(<div key={si} style={{display:'flex',flexDirection:'column' as const,gap:2}}>
+                    {semana.map((dia,di)=>{
+                      const feito=diasComDevSet.has(dia.data)
+                      const hoje=dia.data===isoHoje()
+                      const futuro=dia.data>isoHoje()
+                      return(<div key={di} title={`${dia.data}${feito?' · devocional feito':''}`} style={{width:10,height:10,borderRadius:2,background:futuro?'transparent':feito?C.acc2:C.s3,border:hoje?`1px solid ${C.acc}`:'none'}}/>)
+                    })}
+                  </div>))}
+                </div>
+              </div>
+              <div style={{display:'flex',gap:14,marginTop:10,fontSize:10.5,color:'rgba(255,255,255,.4)',flexWrap:'wrap' as const}}>
+                <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:9,height:9,borderRadius:2,background:C.acc2,display:'inline-block'}}/>Devocional feito</span>
+                <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:9,height:9,borderRadius:2,background:C.s3,display:'inline-block'}}/>Não feito</span>
+                <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:9,height:9,borderRadius:2,border:`1px solid ${C.acc}`,display:'inline-block'}}/>Hoje</span>
+              </div>
             </div>
           </>}
         </Card>
-        <div style={{marginTop:16}}><Card title="Versículo do dia"><p style={{fontSize:13,fontStyle:'italic',lineHeight:1.6}}>"{versTexto}"</p><span style={{fontSize:12,color:C.acc2}}>{versRef}</span></Card></div>
-        <div style={{marginTop:16}}><Card title="Plano de leitura">
+        <div style={{marginTop:16}}><Card title="⭐ Versículo do dia"><p style={{fontSize:13,fontStyle:'italic',lineHeight:1.6}}>"{versTexto}"</p><span style={{fontSize:12,color:C.acc2}}>{versRef}</span></Card></div>
+        <div style={{marginTop:16}}><Card title="📖 Plano de leitura bíblica" action={planos.length>0?<button onClick={()=>setPlanoExpandidoId(id=>id?null:planos[0].id)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:8,padding:'6px 12px',fontSize:11.5,cursor:'pointer'}}>Ver plano</button>:undefined}>
           {planos.length===0&&!mostrarNovoPlano&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'6px 0 12px'}}>Nenhum plano de leitura cadastrado ainda.</div>}
           {planos.map((p:any)=>{
             const pct=p.total>0?Math.min(100,Math.round(p.concluidas/p.total*100)):0
             return(<div key={p.id} style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.line}`}}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,fontWeight:700,marginBottom:4}}><span>{p.nome}</span><span style={{color:'rgba(255,255,255,.5)',fontWeight:400}}>{p.concluidas} / {p.total}</span></div>
-              <div style={{height:8,borderRadius:5,background:C.s3,overflow:'hidden',marginBottom:10}}><div style={{height:'100%',width:`${pct}%`,borderRadius:5,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
-              <label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Leitura de hoje</label>
-              <input value={p.leituraAtual} onChange={e=>atualizarLeituraAtual(p.id,e.target.value)} placeholder="Ex: Salmos 90–92" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,marginBottom:8}}/>
-              <button onClick={()=>concluirLeitura(p.id)} style={{width:'100%',background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px',fontSize:12.5,fontWeight:600,cursor:'pointer'}}>✓ Marcar leitura como concluída</button>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:13,fontWeight:700,marginBottom:6}}><span>{p.nome}</span><span style={{color:C.acc2}}>{pct}%</span></div>
+              <div style={{height:8,borderRadius:5,background:C.s3,overflow:'hidden',marginBottom:12}}><div style={{height:'100%',width:`${pct}%`,borderRadius:5,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginBottom:4}}>Leitura de hoje</div>
+              <input value={p.leituraAtual} onChange={e=>atualizarLeituraAtual(p.id,e.target.value)} placeholder="Ex: Salmos 90–92" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:15,fontWeight:700,marginBottom:10}}/>
+              <div style={{display:'flex',justifyContent:'flex-end'}}>
+                <button onClick={()=>concluirLeitura(p.id)} style={{background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:20,padding:'8px 16px',fontSize:12,fontWeight:700,cursor:'pointer'}}>📝 Marcar como concluída</button>
+              </div>
+              {planoExpandidoId===p.id&&<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.line}`}}>
+                <div style={{fontSize:11.5,fontWeight:700,color:'rgba(255,255,255,.6)',marginBottom:6}}>Histórico de leituras</div>
+                {(!p.historico||p.historico.length===0)&&<div style={{fontSize:12,color:'rgba(255,255,255,.3)'}}>Nenhuma leitura concluída ainda.</div>}
+                {(p.historico||[]).slice(0,20).map((h:any,hi:number)=>(<div key={hi} style={{display:'flex',justifyContent:'space-between',fontSize:12,padding:'5px 0',borderBottom:`1px solid ${C.line}`,color:'rgba(255,255,255,.6)'}}><span>{h.texto}</span><span style={{color:'rgba(255,255,255,.4)'}}>{h.data}</span></div>))}
+              </div>}
             </div>)
           })}
           {mostrarNovoPlano?<div>
@@ -1471,45 +1533,47 @@ function Espiritual(){
       </div>
     </div>
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-      <Card title="Pedidos de oração">
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
-          <input value={novoPedido.pedido} onChange={e=>setNovoPedido(p=>({...p,pedido:e.target.value}))} placeholder="Pedido" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
-          <input value={novoPedido.pessoaTema} onChange={e=>setNovoPedido(p=>({...p,pessoaTema:e.target.value}))} placeholder="Pessoa/tema" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:8,marginBottom:8}}>
-          <input type="date" value={novoPedido.data} onChange={e=>setNovoPedido(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/>
-          <input value={novoPedido.observacoes} onChange={e=>setNovoPedido(p=>({...p,observacoes:e.target.value}))} placeholder="Observações" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
-        </div>
-        <button onClick={addPedido} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,cursor:'pointer',marginBottom:14}}>+ Adicionar pedido</button>
-
-        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.6)',marginBottom:6}}>Em oração ({pedidosEmOracao.length})</div>
-        <div style={{maxHeight:180,overflowY:'auto' as const,marginBottom:14}}>
-          {pedidosEmOracao.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.3)',padding:'6px 0'}}>Nenhum pedido em aberto.</div>}
-          {pedidosEmOracao.map((p:any)=>(<div key={p.id} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}><span style={{fontWeight:700,fontSize:12.5}}>{p.pedido}</span><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{p.data}</span></div>
-            {p.pessoaTema&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>{p.pessoaTema}</div>}
-            {p.observacoes&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>{p.observacoes}</div>}
-            {respondendoId===p.id?<div style={{marginTop:8,background:C.s2,borderRadius:9,padding:10}}>
+      <Card title="🙏 Pedidos de oração" action={<button onClick={()=>setMostrarNovoPedido(m=>!m)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:8,padding:'6px 12px',fontSize:11.5,cursor:'pointer'}}>{mostrarNovoPedido?'Cancelar':'+ Novo pedido'}</button>}>
+        {mostrarNovoPedido&&<div style={{marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${C.line}`}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+            <input value={novoPedido.pedido} onChange={e=>setNovoPedido(p=>({...p,pedido:e.target.value}))} placeholder="Pedido" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
+            <input value={novoPedido.pessoaTema} onChange={e=>setNovoPedido(p=>({...p,pessoaTema:e.target.value}))} placeholder="Pessoa/tema" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 2fr',gap:8,marginBottom:8}}>
+            <input type="date" value={novoPedido.data} onChange={e=>setNovoPedido(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/>
+            <input value={novoPedido.observacoes} onChange={e=>setNovoPedido(p=>({...p,observacoes:e.target.value}))} placeholder="Observações" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'8px 10px',color:'#fff',fontSize:13}}/>
+          </div>
+          <button onClick={()=>{addPedido();setMostrarNovoPedido(false)}} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Adicionar pedido</button>
+        </div>}
+        {pedidos.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum pedido de oração registrado ainda.</div>}
+        {pedidosPreview.map((p:any)=>(<div key={p.id}>
+          <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:`1px solid ${C.line}`}}>
+            <Avatar id={p.id} label={(p.pessoaTema||p.pedido||'?')[0].toUpperCase()} size={34} radius={10}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:12.5,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{p.pedido}</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{p.pessoaTema?`${p.pessoaTema} · `:''}{p.data}</div>
+            </div>
+            <span style={{fontSize:10.5,fontWeight:700,color:p.status==='respondida'?C.acc2:C.ok,background:p.status==='respondida'?'rgba(167,139,250,.15)':'rgba(52,211,153,.15)',padding:'3px 9px',borderRadius:20,flexShrink:0}}>{p.status==='respondida'?'Respondida':'Em oração'}</span>
+            <button onClick={()=>setPedidoMenuId(id=>id===p.id?null:p.id)} style={{background:'none',border:'none',color:'rgba(255,255,255,.4)',cursor:'pointer',fontSize:16,padding:'0 4px',flexShrink:0}}>⋮</button>
+          </div>
+          {pedidoMenuId===p.id&&<div style={{background:C.s2,borderRadius:9,padding:10,marginBottom:8}}>
+            {p.observacoes&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)',marginBottom:6}}>{p.observacoes}</div>}
+            {p.status==='respondida'?<>
+              <div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginBottom:4}}>Respondida em {p.dataResposta}</div>
+              {p.testemunho&&<div style={{fontSize:12,color:'rgba(255,255,255,.6)'}}>{p.testemunho}</div>}
+            </>:respondendoId===p.id?<>
               <label style={{fontSize:10.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>Data da resposta</label>
               <input type="date" value={respostaForm.dataResposta} onChange={e=>setRespostaForm(f=>({...f,dataResposta:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 8px',color:'#fff',fontSize:12,marginBottom:6,colorScheme:'dark'}}/>
               <label style={{fontSize:10.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>Testemunho</label>
               <input value={respostaForm.testemunho} onChange={e=>setRespostaForm(f=>({...f,testemunho:e.target.value}))} placeholder="Como Deus respondeu" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 8px',color:'#fff',fontSize:12,marginBottom:8}}/>
               <div style={{display:'flex',gap:6}}>
-                <button onClick={confirmarResposta} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:7,padding:'6px',fontSize:11.5,fontWeight:700,cursor:'pointer'}}>Confirmar</button>
-                <button onClick={()=>setRespondendoId(null)} style={{background:C.s3,border:'none',color:'#fff',borderRadius:7,padding:'6px 10px',fontSize:11.5,cursor:'pointer'}}>Cancelar</button>
+                <button onClick={()=>{confirmarResposta();setPedidoMenuId(null)}} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:7,padding:'6px',fontSize:11.5,fontWeight:700,cursor:'pointer'}}>Confirmar</button>
+                <button onClick={()=>{setRespondendoId(null);setPedidoMenuId(null)}} style={{background:C.s3,border:'none',color:'#fff',borderRadius:7,padding:'6px 10px',fontSize:11.5,cursor:'pointer'}}>Cancelar</button>
               </div>
-            </div>:<button onClick={()=>abrirResposta(p.id)} style={{marginTop:4,background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',color:C.ok,borderRadius:7,padding:'4px 9px',fontSize:11,cursor:'pointer'}}>✓ Marcar como respondida</button>}
-          </div>))}
-        </div>
-
-        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.6)',marginBottom:6}}>Orações respondidas ({pedidosRespondidos.length})</div>
-        <div style={{maxHeight:180,overflowY:'auto' as const}}>
-          {pedidosRespondidos.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.3)',padding:'6px 0'}}>Nenhuma oração respondida ainda.</div>}
-          {pedidosRespondidos.map((p:any)=>(<div key={p.id} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}><span style={{fontWeight:700,fontSize:12.5,color:C.ok}}>{p.pedido}</span><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{p.data} → {p.dataResposta}</span></div>
-            {p.testemunho&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>{p.testemunho}</div>}
-          </div>))}
-        </div>
+            </>:<button onClick={()=>abrirResposta(p.id)} style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',color:C.ok,borderRadius:7,padding:'5px 10px',fontSize:11.5,cursor:'pointer'}}>✓ Marcar como respondida</button>}
+          </div>}
+        </div>))}
+        {pedidosOrdenados.length>3&&<div onClick={()=>setMostrarTodosPedidos(m=>!m)} style={{textAlign:'center' as const,fontSize:12,color:C.acc2,cursor:'pointer',marginTop:10}}>{mostrarTodosPedidos?'Ver menos':'Ver todos os pedidos'}</div>}
       </Card>
 
       <Card title="Meus devocionais">
@@ -1528,10 +1592,15 @@ function Espiritual(){
         </div>
         {entries.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum devocional registrado ainda.</div>}
         {entries.length>0&&entriesFiltradas.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nada encontrado com esses filtros.</div>}
-        <div style={{maxHeight:400,overflowY:'auto' as const}}>
-          {entriesFiltradas.map((e:any,i:number)=>(<div key={i} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
-            <div onClick={()=>setExpandido(x=>x===i?null:i)} style={{display:'flex',justifyContent:'space-between' as const,marginBottom:2,cursor:'pointer'}}><span style={{fontWeight:700,fontSize:12.5,color:C.acc2}}>{e.ref||'—'}</span><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{e.data} {expandido===i?'▲':'▼'}</span></div>
-            {e.apren&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.5)'}}>{e.apren}</div>}
+        <div style={{maxHeight:mostrarTodosDevocionais?400:'none',overflowY:mostrarTodosDevocionais?'auto' as const:'visible' as const}}>
+          {(mostrarTodosDevocionais?entriesFiltradas:entriesFiltradas.slice(0,4)).map((e:any,i:number)=>(<div key={i} style={{padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+            <div onClick={()=>setExpandido(x=>x===i?null:i)} style={{display:'flex',alignItems:'center',gap:8,marginBottom:2,cursor:'pointer'}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:12.5,color:C.acc2}}>{e.ref||'—'}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{e.data}{e.apren?` · ${e.apren}`:''}</div>
+              </div>
+              <span style={{fontSize:14,color:'rgba(255,255,255,.3)',transform:expandido===i?'rotate(90deg)':'none',transition:'transform .15s',flexShrink:0}}>›</span>
+            </div>
             {expandido===i&&<div style={{marginTop:8,fontSize:11.5,color:'rgba(255,255,255,.6)',display:'grid',gap:5}}>
               {e.mandamento&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Mandamento a obedecer:</b> {e.mandamento}</div>}
               {e.promessa&&<div><b style={{color:'rgba(255,255,255,.4)'}}>Promessa a reivindicar:</b> {e.promessa}</div>}
@@ -1549,6 +1618,7 @@ function Espiritual(){
             </div>}
           </div>))}
         </div>
+        {entriesFiltradas.length>4&&<div onClick={()=>setMostrarTodosDevocionais(m=>!m)} style={{textAlign:'center' as const,fontSize:12,color:C.acc2,cursor:'pointer',marginTop:10}}>{mostrarTodosDevocionais?'Ver menos':'Ver todos os devocionais'}</div>}
       </Card>
     </div>
   </div>)
