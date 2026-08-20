@@ -289,6 +289,8 @@ function Rotina(){
       {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Vitacid, Cicaplast',cat:'Saúde',dias:[1,3,5]},
       {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Effaclar Duo+M, Cicaplast',cat:'Saúde',dias:[2,4,6]},
       {t:'21:00',n:'Skincare noite: Água Micelar Effaclar, Gel Effaclar, Ácido Hialurônico, Cicaplast',cat:'Saúde',dias:[0]},
+      {t:'08:30',n:'Proteína leve: 2 ovos ou iogurte natural',cat:'Alimentação'},
+      {t:'12:00',n:'Almoço: proteína (frango/carne/peixe) + legumes + fio de azeite + vitaminas A/D/E/K',cat:'Alimentação'},
     ]
     setItems(prev=>{
       const mantidos=prev.map((it,idx)=>({it,idx})).filter(({it})=>!OBSOLETOS.has(it.n))

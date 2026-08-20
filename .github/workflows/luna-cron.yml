@@ -1,0 +1,26 @@
+name: Luna - avisos automaticos
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+    - cron: '0 23 * * *'
+    - cron: '5 23 * * 5'
+    - cron: '10 23 * * 0'
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  chamar-rota:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chama a rota certa da Luna
+        run: |
+          case "${{ github.event.schedule }}" in
+            "0 9 * * *") ROTA="cron-morning" ;;
+            "0 23 * * *") ROTA="cron-evening" ;;
+            "5 23 * * 5") ROTA="cron-weekly" ;;
+            "10 23 * * 0") ROTA="cron-nextweek" ;;
+            *) ROTA="cron-check" ;;
+          esac
+          echo "Chamando /api/$ROTA"
+          curl -sS -X POST "https://denise-os.vercel.app/api/$ROTA"

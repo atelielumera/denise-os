@@ -78,6 +78,15 @@ export default async function handler(req, res) {
       if (estaNaJanela(ev.hora)) avisos.push(`📅 ${ev.hora} · ${ev.nome}`)
     })
 
+    const META_AGUA_ML = 2500
+    const aguaLog = d.dos_agua_log || {}
+    const aguaHojeMl = Number(aguaLog[hojeIso] || 0)
+    const horaAgora = Math.floor(agoraMin / 60)
+    const minutoDentroHora = agoraMin % 60
+    if (aguaHojeMl < META_AGUA_ML && horaAgora >= 7 && horaAgora <= 22 && minutoDentroHora < JANELA_MIN) {
+      avisos.push(`💧 Hidratação — ${aguaHojeMl} ml de ${META_AGUA_ML} ml hoje (água, chimarrão, suco, água com gás contam)`)
+    }
+
     if (avisos.length === 0) {
       res.status(200).json({ ok: true, avisos_enviados: 0 })
       return
