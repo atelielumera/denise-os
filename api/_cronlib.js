@@ -15,7 +15,7 @@ function diasDesdeRegistroBR(dataBR) {
   return Math.floor((hoje.getTime() - dataReg.getTime()) / 86400000)
 }
 
-function horaLocalBR(dataISO) {
+export function horaLocalBR(dataISO) {
   const partes = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' }).formatToParts(new Date(dataISO))
   const h = partes.find((p) => p.type === 'hour')?.value || '00'
   const m = partes.find((p) => p.type === 'minute')?.value || '00'
@@ -23,6 +23,9 @@ function horaLocalBR(dataISO) {
 }
 
 const GOOGLE_CLIENT_ID = '386247436984-g828bjjges33iherifnlbk18cfe0u1mj.apps.googleusercontent.com'
+
+export const BUSCA_DOMI_POR_DIA = { 1: { busca: '12:50', sair: '12:35' }, 2: { busca: '11:40', sair: '11:25' }, 3: { busca: '12:50', sair: '12:35' }, 4: { busca: '11:40', sair: '11:25' }, 5: { busca: '13:00', sair: '12:45' } }
+export const PLANO_TREINO_SEMANA = { 0: null, 1: 'Calistenia', 2: 'Caminhada', 3: 'Calistenia', 4: 'Caminhada', 5: 'Calistenia', 6: 'Mobilidade' }
 
 export function getEvoConfig() {
   const baseUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '')
@@ -121,6 +124,33 @@ export async function fetchGoogleCalendarEventos(supabase, timeMinIso, timeMaxIs
   return Array.isArray(data.items) ? data.items : []
 }
 
+function addHoraStr(hhmm) {
+  const partes = String(hhmm || '').split(':').map(Number)
+  const hh = partes[0] || 0, mm = partes[1] || 0
+  const d = new Date(); d.setHours(hh + 1, mm, 0, 0)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+export async function insertGoogleCalendarEvento(supabase, { nome, data, hora }) {
+  const accessToken = await getGoogleAccessToken(supabase)
+  if (!accessToken) return null
+  const body = { summary: nome }
+  if (hora) {
+    body.start = { dateTime: `${data}T${hora}:00`, timeZone: 'America/Sao_Paulo' }
+    body.end = { dateTime: `${data}T${addHoraStr(hora)}:00`, timeZone: 'America/Sao_Paulo' }
+  } else {
+    body.start = { date: data }
+    body.end = { date: data }
+  }
+  const resp = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) return null
+  return await resp.json()
+}
+
 export function getSupabaseAdmin() {
   const url = process.env.VITE_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -187,14 +217,13 @@ export async function buildLunaContext() {
   const aguaLog = d.dos_agua_log || {}
   const aguaHojeMl = Number(aguaLog[hojeIso] || 0)
 
-  const BUSCA_DOMI_POR_DIA = { 1: { busca: '12:50', sair: '12:35' }, 2: { busca: '11:40', sair: '11:25' }, 3: { busca: '12:50', sair: '12:35' }, 4: { busca: '11:40', sair: '11:25' }, 5: { busca: '13:00', sair: '12:45' } }
   const diaSemanaHoje = new Date(hojeIso + 'T12:00:00-03:00').getDay()
   const buscaDomiHoje = BUSCA_DOMI_POR_DIA[diaSemanaHoje] || null
 
   return {
     data_hoje: hojeIso,
     agua_hoje_ml: aguaHojeMl,
-    meta_agua_ml: 2500,
+    meta_agua_ml: Number(d.dos_meta_agua_ml || 2500),
     busca_domi_hoje: buscaDomiHoje,
     ultima_sincronizacao_do_app: snap?.data ? d.__updated_at || null : null,
     tirzepatida: Object.keys(tzMap).length > 0 ? { estoque_atual_mg: Number(bal?.current_balance_mg ?? 0), denise: tzMap.denise || null, flavio: tzMap.flavio || null } : null,

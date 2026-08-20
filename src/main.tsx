@@ -146,7 +146,8 @@ function Shell(){
     const dt=new Date()
     try{
       const log=JSON.parse(localStorage.getItem('dos_agua_log')||'{}')
-      while((log[isoBR(dt)]||0)>=2500){n++;dt.setDate(dt.getDate()-1)}
+      const metaAguaSeq=Number(localStorage.getItem('dos_meta_agua_ml')||2500)
+      while((log[isoBR(dt)]||0)>=metaAguaSeq){n++;dt.setDate(dt.getDate()-1)}
     }catch{}
     return n
   }
@@ -222,7 +223,8 @@ function Home(){const navigate=useNavigate();
   const tasksConcluidas=tasksHome.filter((t:any)=>t.s==='concluído').length
   const trabPct=tasksHome.length>0?Math.round(tasksConcluidas/tasksHome.length*100):0
   const saudePct=ultimoSaude?100:0
-  const hidPct=Math.min(100,Math.round(wat/2500*100))
+  const metaAguaHome=Number(localStorage.getItem('dos_meta_agua_ml')||2500)
+  const hidPct=Math.min(100,Math.round(wat/metaAguaHome*100))
   const espPct=devHoje?100:0
   const resumoMedia=Math.round((saudePct+exPct+Math.min(100,Math.round(prot/120*100))+hidPct+espPct+trabPct)/6)
   const leiturasHome=(()=>{try{return JSON.parse(localStorage.getItem('dos_leituras')||'[]')}catch{return []}})() as any[]
@@ -928,6 +930,13 @@ function Saude(){
     if(!novaConsulta.tipo||!novaConsulta.data)return
     const n={...consuls,[kid]:[{...novaConsulta},...(consuls[kid]||[])]}
     setConsuls(n);localStorage.setItem('dos_consuls',JSON.stringify(n))
+    const nomeEvento=`Consulta: ${novaConsulta.tipo}${kid?` (${kid.charAt(0).toUpperCase()+kid.slice(1)})`:''}`
+    try{
+      const agendaAtual=JSON.parse(localStorage.getItem('dos_agenda')||'[]')
+      const agendaNova=[...agendaAtual,{data:novaConsulta.data,hora:'',nome:nomeEvento,cor:'#38bdf8'}].sort((a:any,b:any)=>(a.data+a.hora).localeCompare(b.data+b.hora))
+      localStorage.setItem('dos_agenda',JSON.stringify(agendaNova))
+    }catch{}
+    fetch('/api/agenda-sync-google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({nome:nomeEvento,data:novaConsulta.data})}).catch(()=>{})
     setNovaConsulta({tipo:'',data:'',obs:'',proximo:''});setSavedC(true)
   }
   function delConsulta(kid:string,idx:number){
@@ -1271,7 +1280,13 @@ function Alimentacao(){
   const [nomef,setNomef]=React.useState('')
   const [protf,setProtf]=React.useState('')
   const [saved,setSaved]=React.useState(false)
-  const metaP=120,metaW=2500
+  const metaP=120
+  const [metaW,setMetaW]=React.useState(()=>Number(localStorage.getItem('dos_meta_agua_ml')||2500))
+  const [metaWInput,setMetaWInput]=React.useState('')
+  function atualizarMetaAgua(){
+    const n=Math.max(500,Number(metaWInput)||metaW)
+    setMetaW(n);localStorage.setItem('dos_meta_agua_ml',String(n));setMetaWInput('')
+  }
   const addW=(ml:number)=>{const n=Math.min(wat+ml,6000);setWat(n);salvarAguaHoje(n)}
   const addP=(g:number)=>{const n=Math.min(prot+g,300);setProt(n);localStorage.setItem('dos_prot',String(n))}
   function registrar(){
@@ -1296,10 +1311,14 @@ function Alimentacao(){
         <div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:4}}>{pctP}% da meta</div>
       </div>
       <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:16}}>
-        <div style={{fontSize:22,fontWeight:800,color:C.water}}>{(wat/1000).toFixed(1).replace('.',',')} / 2,5 L</div>
+        <div style={{fontSize:22,fontWeight:800,color:C.water}}>{(wat/1000).toFixed(1).replace('.',',')} / {(metaW/1000).toFixed(1).replace('.',',')} L</div>
         <div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2,marginBottom:8}}>Água hoje</div>
         <div style={{height:8,borderRadius:4,background:C.s3,overflow:'hidden'}}><div style={{height:'100%',width:`${pctW}%`,borderRadius:4,background:C.water,transition:'width .3s'}}/></div>
         <div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:4}}>{pctW}% da meta</div>
+        <div style={{display:'flex',gap:6,marginTop:8}}>
+          <input type="number" value={metaWInput} onChange={e=>setMetaWInput(e.target.value)} placeholder={`Meta em ml (${metaW})`} style={{flex:1,background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 8px',color:'#fff',fontSize:11.5}}/>
+          <button onClick={atualizarMetaAgua} style={{background:'rgba(56,189,248,.15)',border:'1px solid rgba(56,189,248,.3)',color:C.water,borderRadius:8,padding:'6px 10px',fontSize:11,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const}}>Definir meta</button>
+        </div>
       </div>
       <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:16}}>
         <div style={{fontSize:22,fontWeight:800}}>{refs.length}</div>
@@ -1931,17 +1950,35 @@ function Assistente(){
     setTzBalance(Number(bal?.current_balance_mg??0))
   })()},[])
   const LUNA_CHAT_KEY='dos_luna_chat'
-  const saudacaoInicial=()=>[{me:false,t:`${g}, Denise! Sou a Luna 💜 Pode falar comigo por texto, áudio ou mandar uma foto. Como posso ajudar?`}]
-  const [msgs,setMsgs]=React.useState<{me:boolean,t:string}[]>(()=>{
+  const LUNA_CONVERSAS_KEY='dos_luna_conversas'
+  const LUNA_ATIVA_KEY='dos_luna_conversa_ativa'
+  const WHATSAPP_THREAD_ID='whatsapp'
+  type LunaMsg={me:boolean,t:string}
+  type LunaConversa={id:string,titulo:string,criadaEm:string,msgs:LunaMsg[]}
+  const saudacaoInicial=():LunaMsg[]=>[{me:false,t:`${g}, Denise! Sou a Luna 💜 Pode falar comigo por texto, áudio ou mandar uma foto. Como posso ajudar?`}]
+  function gerarIdConversa(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+  function tituloAPartir(txt:string){const t=txt.trim().replace(/\s+/g,' ');return t.length>40?t.slice(0,40)+'…':(t||'Nova conversa')}
+
+  const [whatsMsgs,setWhatsMsgs]=React.useState<LunaMsg[]>(()=>{
     try{
       const salvo=JSON.parse(localStorage.getItem(LUNA_CHAT_KEY)||'null')
       if(Array.isArray(salvo)&&salvo.length>0)return salvo
     }catch{}
     return saudacaoInicial()
   })
-  React.useEffect(()=>{
-    try{localStorage.setItem(LUNA_CHAT_KEY,JSON.stringify(msgs.slice(-40)))}catch{}
-  },[msgs])
+  const [conversas,setConversas]=React.useState<LunaConversa[]>(()=>{
+    try{
+      const salvo=JSON.parse(localStorage.getItem(LUNA_CONVERSAS_KEY)||'null')
+      if(Array.isArray(salvo))return salvo
+    }catch{}
+    return []
+  })
+  const [ativaId,setAtivaId]=React.useState<string>(()=>localStorage.getItem(LUNA_ATIVA_KEY)||WHATSAPP_THREAD_ID)
+
+  React.useEffect(()=>{try{localStorage.setItem(LUNA_CHAT_KEY,JSON.stringify(whatsMsgs.slice(-40)))}catch{}},[whatsMsgs])
+  React.useEffect(()=>{try{localStorage.setItem(LUNA_CONVERSAS_KEY,JSON.stringify(conversas))}catch{}},[conversas])
+  React.useEffect(()=>{try{localStorage.setItem(LUNA_ATIVA_KEY,ativaId)}catch{}},[ativaId])
+
   React.useEffect(()=>{
     (async()=>{
       try{
@@ -1950,13 +1987,29 @@ function Assistente(){
         const {data:snap}=await supabase.from('app_snapshot').select('data').eq('id','denise').maybeSingle()
         const remoto=snap?.data?.[LUNA_CHAT_KEY]
         if(Array.isArray(remoto)&&remoto.length>1){
-          setMsgs(remoto)
+          setWhatsMsgs(remoto)
           localStorage.setItem(LUNA_CHAT_KEY,JSON.stringify(remoto))
         }
       }catch{}
     })()
   },[])
-  function novaConversa(){setMsgs(saudacaoInicial())}
+
+  const conversaAtiva=ativaId===WHATSAPP_THREAD_ID?null:conversas.find(c=>c.id===ativaId)||null
+  const msgs=ativaId===WHATSAPP_THREAD_ID?whatsMsgs:(conversaAtiva?.msgs||[])
+  function setMsgsAtual(updater:(prev:LunaMsg[])=>LunaMsg[]){
+    if(ativaId===WHATSAPP_THREAD_ID){setWhatsMsgs(prev=>updater(prev));return}
+    setConversas(prev=>prev.map(c=>c.id===ativaId?{...c,msgs:updater(c.msgs)}:c))
+  }
+  function novaConversa(){
+    const id=gerarIdConversa()
+    const nova:LunaConversa={id,titulo:'Nova conversa',criadaEm:new Date().toISOString(),msgs:saudacaoInicial()}
+    setConversas(prev=>[nova,...prev])
+    setAtivaId(id)
+  }
+  function excluirConversa(id:string){
+    setConversas(prev=>prev.filter(c=>c.id!==id))
+    if(ativaId===id)setAtivaId(WHATSAPP_THREAD_ID)
+  }
   const [inp,setInp]=React.useState('')
   const [sending,setSending]=React.useState(false)
   const [pendingImg,setPendingImg]=React.useState<{mediaType:string,base64:string,preview:string}|null>(null)
@@ -2014,7 +2067,11 @@ function Assistente(){
     setPendingImg(null)
     const displayText=text||(img?'📷 Imagem enviada':'🎤 Áudio enviado')
     const historyForApi=[...msgs]
-    setMsgs(m=>[...m,{me:true,t:displayText}])
+    if(ativaId!==WHATSAPP_THREAD_ID&&conversaAtiva?.titulo==='Nova conversa'){
+      const novoTitulo=tituloAPartir(displayText)
+      setConversas(prev=>prev.map(c=>c.id===ativaId?{...c,titulo:novoTitulo}:c))
+    }
+    setMsgsAtual(m=>[...m,{me:true,t:displayText}])
     try{
       const resp=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
         message:text,
@@ -2025,9 +2082,9 @@ function Assistente(){
       })})
       const data=await resp.json()
       if(!resp.ok) throw new Error(data?.error||'Erro ao falar com a Luna.')
-      setMsgs(m=>[...m,{me:false,t:data.reply}])
+      setMsgsAtual(m=>[...m,{me:false,t:data.reply}])
     }catch(err:any){
-      setMsgs(m=>[...m,{me:false,t:'😕 '+(err?.message||'Não consegui responder agora. Tenta de novo?')}])
+      setMsgsAtual(m=>[...m,{me:false,t:'😕 '+(err?.message||'Não consegui responder agora. Tenta de novo?')}])
     }
     setSending(false)
   }
@@ -2050,7 +2107,7 @@ function Assistente(){
       mediaRecRef.current=rec
       setRecording(true)
     }catch{
-      setMsgs(m=>[...m,{me:false,t:'Não consegui acessar o microfone. Verifica a permissão de áudio do navegador.'}])
+      setMsgsAtual(m=>[...m,{me:false,t:'Não consegui acessar o microfone. Verifica a permissão de áudio do navegador.'}])
     }
   }
 
@@ -2072,7 +2129,17 @@ function Assistente(){
       <div><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Luna</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13}}>Sua assistente pessoal — entende texto, áudio e imagem.</p></div>
       <button onClick={novaConversa} style={{background:C.s2,border:`1px solid ${C.line}`,color:'rgba(255,255,255,.7)',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap' as const}}>+ Nova conversa</button>
     </div>
-    <div style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18,display:'flex',flexDirection:'column' as const,height:'60vh'}}>
+    <div style={{display:'flex',gap:16,height:'60vh'}}>
+    <div style={{width:220,flexShrink:0,background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:10,overflowY:'auto' as const,display:'flex',flexDirection:'column' as const,gap:4}}>
+      {[{id:WHATSAPP_THREAD_ID,titulo:'WhatsApp',fixa:true},...conversas.map(c=>({id:c.id,titulo:c.titulo,fixa:false}))].map(c=>(
+        <div key={c.id} onClick={()=>setAtivaId(c.id)} style={{display:'flex',alignItems:'center',gap:6,padding:'9px 10px',borderRadius:10,cursor:'pointer',background:ativaId===c.id?'rgba(139,92,246,.15)':'transparent',color:ativaId===c.id?'#fff':'rgba(255,255,255,.6)'}}>
+          <span style={{fontSize:13,flex:1,overflow:'hidden',textOverflow:'ellipsis' as const,whiteSpace:'nowrap' as const}}>{c.fixa?'💬 ':''}{c.titulo}</span>
+          {!c.fixa&&<button onClick={(e:React.MouseEvent)=>{e.stopPropagation();excluirConversa(c.id)}} style={{background:'none',border:'none',color:'rgba(255,255,255,.3)',cursor:'pointer',fontSize:12,flexShrink:0}}>✕</button>}
+        </div>
+      ))}
+      {conversas.length===0&&<div style={{fontSize:11,color:'rgba(255,255,255,.3)',padding:'8px 10px'}}>Suas conversas aparecem aqui.</div>}
+    </div>
+    <div style={{flex:1,minWidth:0,background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18,display:'flex',flexDirection:'column' as const}}>
       <div style={{flex:1,overflowY:'auto' as const,display:'flex',flexDirection:'column' as const,gap:12,paddingBottom:12}}>
         {msgs.map((m,i)=>(<div key={i} style={{maxWidth:'80%',padding:'11px 14px',borderRadius:14,fontSize:13.5,lineHeight:1.5,alignSelf:m.me?'flex-end':'flex-start',background:m.me?`linear-gradient(135deg,${C.acc},#7c3aed)`:'rgba(255,255,255,.06)',border:m.me?'none':`1px solid ${C.line}`,whiteSpace:'pre-wrap' as const}}>{m.t}</div>))}
         {sending&&<div style={{alignSelf:'flex-start',padding:'11px 14px',borderRadius:14,fontSize:13.5,background:'rgba(255,255,255,.06)',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.5)'}}>Luna está digitando…</div>}
@@ -2090,6 +2157,7 @@ function Assistente(){
         <input value={inp} onChange={e=>setInp(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder={recording?'Gravando áudio…':'Pergunte qualquer coisa…'} disabled={recording} style={{flex:1,background:'none',border:'none',color:'#fff',fontSize:13.5,outline:'none'}}/>
         <button onClick={()=>send()} disabled={sending||recording||(!inp.trim()&&!pendingImg)} style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,border:'none',color:'#fff',cursor:'pointer',fontSize:18,flexShrink:0,opacity:(sending||recording||(!inp.trim()&&!pendingImg))?0.5:1}}>↑</button>
       </div>
+    </div>
     </div>
   </div>)
 }

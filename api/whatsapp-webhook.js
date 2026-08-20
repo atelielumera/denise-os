@@ -1,6 +1,7 @@
-import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSystemPrompt, getSupabaseAdmin } from './_cronlib.js'
+import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSystemPrompt, getSupabaseAdmin, insertGoogleCalendarEvento } from './_cronlib.js'
 
 const CASA_CATS_VALIDAS = ['Mercado', 'Doméstico', 'Manutenção', 'Contas']
+const STATUS_TRABALHO_VALIDOS = ['pendente', 'andamento', 'aguardando', 'concluído']
 
 async function processarComando(number, userText, hojeIso, supabase, d) {
   if (!userText || !supabase) return false
@@ -22,11 +23,18 @@ async function processarComando(number, userText, hojeIso, supabase, d) {
     const avalDomiPendente = avalDomi.map((a, idx) => ({ idx, data: a.data, tipo: a.tipo })).filter((_, idx) => !avalDomi[idx].feito)
     const avalDerickPendente = avalDerick.map((a, idx) => ({ idx, data: a.data, tipo: a.tipo })).filter((_, idx) => !avalDerick[idx].feito)
 
-    if (rotinaPendente.length === 0 && casaPendente.length === 0 && avalDomiPendente.length === 0 && avalDerickPendente.length === 0 && !/compr|adicion|mercado|lista|coloca|agenda|toda |todo /i.test(userText)) {
+    const trabalhoTarefas = Array.isArray(d.dos_trabalho) ? d.dos_trabalho : []
+    const trabalhoAbertas = trabalhoTarefas.map((t, idx) => ({ idx, tarefa: t.t, projeto: t.p, status: t.s })).filter((t) => t.status !== 'concluído')
+
+    const livroAtual = d.dos_livro_atual || null
+
+    const GATE_RE = /compr|adicion|mercado|lista|coloca|agenda|toda |todo |tirze|apliq|li \d|p[aá]gina|treino|malhei|caminhad|calistenia|mobilidade|devocional|reflex|reuni[aã]o|evento|marcar|consulta|status|conclu[ií]|andamento|aguardando/i
+    if (rotinaPendente.length === 0 && casaPendente.length === 0 && avalDomiPendente.length === 0 && avalDerickPendente.length === 0 && trabalhoAbertas.length === 0 && !GATE_RE.test(userText)) {
       return false
     }
 
-    const classPrompt = 'Responda APENAS com um JSON, nada mais, sem comentario. Formato exato: {"feitos_rotina":[numeros],"feitos_casa":[numeros],"feitos_aval_domi":[numeros],"feitos_aval_derick":[numeros],"novos_casa":[{"nome":"...","categoria":"Mercado|Doméstico|Manutenção|Contas"}],"novos_compromissos":[{"nome":"...","dia_semana":numero de 0 a 6 (0=domingo,1=segunda,2=terca,3=quarta,4=quinta,5=sexta,6=sabado),"horario":"HH:MM"}]}. A Denise mandou esta mensagem pelo WhatsApp: "' + userText.replace(/"/g, "'") + '".\n\nRotina de hoje ainda pendente (id, horario, nome): ' + JSON.stringify(rotinaPendente.map((p) => ({ id: p.idx, horario: p.horario, nome: p.nome }))) + '\nItens pendentes da Casa (id, nome, categoria): ' + JSON.stringify(casaPendente.map((p) => ({ id: p.idx, nome: p.nome, categoria: p.categoria }))) + '\nAvaliações pendentes da Domi (id, data, tipo): ' + JSON.stringify(avalDomiPendente) + '\nAvaliações pendentes do Derick (id, data, tipo): ' + JSON.stringify(avalDerickPendente) + '\n\nSe a mensagem confirmar que ela fez algo dessas listas (ex: "ja fiz X", "paguei a luz", "registrei a prova de matematica da domi"), coloque os ids certos no campo correspondente. Se a mensagem for uma lista de compras ou tarefas novas pra Casa (ex: "compra leite, pao e ovos", "adiciona pagar internet"), coloque cada item novo em novos_casa com nome e a categoria certa (Mercado para compras de supermercado, Contas para contas a pagar, Doméstico para tarefas de casa, Manutenção para consertos). Se a mensagem pedir pra colocar um compromisso recorrente (toda segunda/terca/etc) na agenda/rotina (ex: "coloca toda quinta Culto de mulheres das 13:30 as 16:00"), coloque em novos_compromissos com nome (inclua o horario de termino no nome se houver, ex: "Culto de mulheres (ate 16:00)"), dia_semana e horario de inicio. Se nada disso se aplicar, responda com todos os campos vazios.'
+    const DIAS_NOME = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+    const classPrompt = 'Responda APENAS com um JSON, nada mais, sem comentario. Formato exato: {"feitos_rotina":[numeros],"feitos_casa":[numeros],"feitos_aval_domi":[numeros],"feitos_aval_derick":[numeros],"novos_casa":[{"nome":"...","categoria":"Mercado|Doméstico|Manutenção|Contas"}],"novos_compromissos":[{"nome":"...","dia_semana":numero de 0 a 6 (0=domingo,1=segunda,2=terca,3=quarta,4=quinta,5=sexta,6=sabado),"horario":"HH:MM"}],"novos_eventos_google":[{"nome":"...","data":"YYYY-MM-DD","hora":"HH:MM ou vazio se o dia todo"}],"tirzepatida_aplicada":{"pessoa":"denise|flavio"}|null,"trabalho_status":[{"id":numero,"novo_status":"pendente|andamento|aguardando|concluído"}],"leitura_registrada":{"paginas":numero|null,"minutos":numero|null,"parou_na_pagina":numero|null}|null,"treino_registrado":{"feito":true|false}|null,"devocional_resposta":"texto"|null}. Hoje e ' + hojeIso + ' (' + DIAS_NOME[diaSemanaHoje] + '). A Denise mandou esta mensagem pelo WhatsApp: "' + userText.replace(/"/g, "'") + '".\n\nRotina de hoje ainda pendente (id, horario, nome): ' + JSON.stringify(rotinaPendente.map((p) => ({ id: p.idx, horario: p.horario, nome: p.nome }))) + '\nItens pendentes da Casa (id, nome, categoria): ' + JSON.stringify(casaPendente.map((p) => ({ id: p.idx, nome: p.nome, categoria: p.categoria }))) + '\nAvaliações pendentes da Domi (id, data, tipo): ' + JSON.stringify(avalDomiPendente) + '\nAvaliações pendentes do Derick (id, data, tipo): ' + JSON.stringify(avalDerickPendente) + '\nTarefas de trabalho em aberto (id, tarefa, projeto, status atual): ' + JSON.stringify(trabalhoAbertas) + '\nLivro que ela esta lendo agora: ' + JSON.stringify(livroAtual) + '\n\nRegras: Se a mensagem confirmar que ela fez algo dessas listas (ex: "ja fiz X", "paguei a luz", "registrei a prova de matematica da domi"), coloque os ids certos no campo correspondente. Se for lista de compras/tarefas novas pra Casa, coloque em novos_casa. Se pedir compromisso recorrente (toda segunda/terca/etc) na rotina, coloque em novos_compromissos. Se pedir para marcar/inserir uma reuniao, evento ou compromisso em uma DATA especifica (nao recorrente, ex: "marca reuniao com fulano dia 25 as 14h", "coloca consulta do dentista sexta que vem"), resolva a data relativa usando hoje=' + hojeIso + ' e coloque em novos_eventos_google (nome, data no formato YYYY-MM-DD, hora se houver). Se ela disser que aplicou a tirzepatida (dela ou do Flavio; se nao especificar a pessoa, assuma "denise"), preencha tirzepatida_aplicada. Se ela mencionar mudanca de status de alguma tarefa de trabalho (ex: "a tarefa X esta concluida", "comecei a tarefa Y", "Z esta aguardando resposta"), ache o id certo na lista de tarefas em aberto e coloque em trabalho_status. Se ela disser quantas paginas leu, quantos minutos leu, ou em que pagina parou, preencha leitura_registrada (campos que ela nao mencionou ficam null). Se ela disser que fez o treino de hoje ou que NAO fez o treino hoje, preencha treino_registrado. Se a mensagem for uma resposta as perguntas do devocional (reflexao sobre mandamento, promessa, pecado, aplicacao, algo novo sobre Deus, ou quem/o que/quando/onde/por que), coloque o texto completo da resposta dela em devocional_resposta. Se nada de uma categoria se aplicar, deixe vazio/null nela.'
     const classResp = await askLuna(classPrompt, [{ type: 'text', text: userText }])
     const match = classResp.match(/\{[\s\S]*\}/)
     const parsed = match ? JSON.parse(match[0]) : {}
@@ -37,8 +45,14 @@ async function processarComando(number, userText, hojeIso, supabase, d) {
     const feitosAvalDerick = Array.isArray(parsed.feitos_aval_derick) ? parsed.feitos_aval_derick.filter((n) => typeof n === 'number' && avalDerickPendente.some((p) => p.idx === n)) : []
     const novosCasa = Array.isArray(parsed.novos_casa) ? parsed.novos_casa.filter((n) => n && n.nome) : []
     const novosCompromissos = Array.isArray(parsed.novos_compromissos) ? parsed.novos_compromissos.filter((n) => n && n.nome && typeof n.dia_semana === 'number' && n.dia_semana >= 0 && n.dia_semana <= 6 && /^\d{1,2}:\d{2}$/.test(n.horario || '')) : []
+    const novosEventosGoogle = Array.isArray(parsed.novos_eventos_google) ? parsed.novos_eventos_google.filter((n) => n && n.nome && /^\d{4}-\d{2}-\d{2}$/.test(n.data || '')) : []
+    const tirzepatidaAplicada = parsed.tirzepatida_aplicada && ['denise', 'flavio'].includes(parsed.tirzepatida_aplicada.pessoa) ? parsed.tirzepatida_aplicada : null
+    const trabalhoStatus = Array.isArray(parsed.trabalho_status) ? parsed.trabalho_status.filter((n) => n && typeof n.id === 'number' && trabalhoAbertas.some((p) => p.idx === n.id) && STATUS_TRABALHO_VALIDOS.includes(n.novo_status)) : []
+    const leituraRegistrada = parsed.leitura_registrada && (parsed.leitura_registrada.paginas || parsed.leitura_registrada.minutos || parsed.leitura_registrada.parou_na_pagina) ? parsed.leitura_registrada : null
+    const treinoRegistrado = parsed.treino_registrado && typeof parsed.treino_registrado.feito === 'boolean' ? parsed.treino_registrado : null
+    const devocionalResposta = typeof parsed.devocional_resposta === 'string' && parsed.devocional_resposta.trim() ? parsed.devocional_resposta.trim() : null
 
-    if (feitosRotina.length === 0 && feitosCasa.length === 0 && feitosAvalDomi.length === 0 && feitosAvalDerick.length === 0 && novosCasa.length === 0 && novosCompromissos.length === 0) {
+    if (feitosRotina.length === 0 && feitosCasa.length === 0 && feitosAvalDomi.length === 0 && feitosAvalDerick.length === 0 && novosCasa.length === 0 && novosCompromissos.length === 0 && novosEventosGoogle.length === 0 && !tirzepatidaAplicada && trabalhoStatus.length === 0 && !leituraRegistrada && !treinoRegistrado && !devocionalResposta) {
       return false
     }
 
@@ -79,8 +93,77 @@ async function processarComando(number, userText, hojeIso, supabase, d) {
       const rotinaAtual = Array.isArray(d.dos_rotina) ? d.dos_rotina : rotina
       const adicionados = novosCompromissos.map((n) => ({ t: n.horario, n: n.nome, cat: 'Compromisso', dias: [n.dia_semana] }))
       d.dos_rotina = [...rotinaAtual, ...adicionados]
-      const DIAS_NOME = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
       partesConfirmacao.push('📅 Adicionei na sua rotina: ' + adicionados.map((a) => `${a.n} toda ${DIAS_NOME[a.dias[0]]} às ${a.t}`).join(', '))
+    }
+
+    if (novosEventosGoogle.length > 0) {
+      const agendaAtual = Array.isArray(d.dos_agenda) ? d.dos_agenda : []
+      const adicionadosAgenda = []
+      for (const ev of novosEventosGoogle) {
+        adicionadosAgenda.push({ data: ev.data, hora: ev.hora || '', nome: ev.nome, cor: '#38bdf8' })
+        await insertGoogleCalendarEvento(supabase, { nome: ev.nome, data: ev.data, hora: ev.hora || '' }).catch(() => null)
+      }
+      d.dos_agenda = [...agendaAtual, ...adicionadosAgenda].sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora))
+      partesConfirmacao.push('📅 Marquei na sua agenda (e no Google Agenda): ' + adicionadosAgenda.map((a) => `${a.nome} em ${a.data}${a.hora ? ' às ' + a.hora : ''}`).join(', '))
+    }
+
+    if (tirzepatidaAplicada) {
+      try {
+        const { data: schedRow } = await supabase.from('tirzepatida_schedule').select('planned_dose_mg').eq('person', tirzepatidaAplicada.pessoa).maybeSingle()
+        const doseMg = Number(schedRow?.planned_dose_mg || 0)
+        if (doseMg > 0) {
+          const appliedAt = new Date().toISOString()
+          const { error } = await supabase.rpc('tirze_apply_dose', { p_person: tirzepatidaAplicada.pessoa, p_applied_at: appliedAt, p_dose_mg: doseMg })
+          if (!error) {
+            const { data: bal } = await supabase.from('tirzepatida_stock_balance').select('*').maybeSingle()
+            const quem = tirzepatidaAplicada.pessoa === 'denise' ? 'sua' : 'do Flávio'
+            partesConfirmacao.push(`💉 Registrei a aplicação ${quem} (${doseMg}mg). Estoque atualizado: ${Number(bal?.current_balance_mg ?? 0)}mg restantes.`)
+          }
+        }
+      } catch { /* nao bloqueia o resto */ }
+    }
+
+    if (trabalhoStatus.length > 0) {
+      const novasTarefas = trabalhoTarefas.map((t, idx) => {
+        const alteracao = trabalhoStatus.find((s) => s.id === idx)
+        return alteracao ? { ...t, s: alteracao.novo_status } : t
+      })
+      d.dos_trabalho = novasTarefas
+      partesConfirmacao.push('💼 Atualizei o status: ' + trabalhoStatus.map((s) => `"${trabalhoAbertas.find((t) => t.idx === s.id)?.tarefa}" → ${s.novo_status}`).join(', '))
+    }
+
+    if (leituraRegistrada) {
+      const leiturasAtuais = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
+      const paginasLidas = Number(leituraRegistrada.paginas || 0)
+      const reg = { data: hojeIso, pag: paginasLidas, min: Number(leituraRegistrada.minutos || 0), apren: '' }
+      d.dos_leituras = [reg, ...leiturasAtuais]
+      if (livroAtual && livroAtual.totalPaginas > 0) {
+        const novaPagina = leituraRegistrada.parou_na_pagina != null ? Math.min(livroAtual.totalPaginas, Number(leituraRegistrada.parou_na_pagina)) : Math.min(livroAtual.totalPaginas, Number(livroAtual.paginaAtual || 0) + paginasLidas)
+        d.dos_livro_atual = { ...livroAtual, paginaAtual: novaPagina }
+        partesConfirmacao.push(`📖 Leitura registrada! Você parou na página ${novaPagina} de ${livroAtual.totalPaginas}.`)
+      } else {
+        partesConfirmacao.push('📖 Leitura registrada!')
+      }
+    }
+
+    if (treinoRegistrado) {
+      if (treinoRegistrado.feito) {
+        const treinosAtuais = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
+        d.dos_treinos = [{ data: hojeIso, tipo: 'Registrado via WhatsApp', duracaoMin: 0 }, ...treinosAtuais]
+        partesConfirmacao.push('✅ Treino de hoje registrado como feito!')
+      } else {
+        partesConfirmacao.push('Ok, registrei que hoje não deu pra treinar. Sem culpa, amanhã tem mais.')
+      }
+      d[`dos_treino_registrado_${hojeIso}`] = true
+    }
+
+    if (devocionalResposta) {
+      const devocionaisAtuais = Array.isArray(d.dos_devocionais) ? d.dos_devocionais : []
+      const outros = devocionaisAtuais.filter((e) => e.data !== hojeIso)
+      const existenteHoje = devocionaisAtuais.find((e) => e.data === hojeIso) || {}
+      const reg = { ...existenteHoje, data: hojeIso, reflex: devocionalResposta }
+      d.dos_devocionais = [reg, ...outros].sort((a, b) => b.data.localeCompare(a.data))
+      partesConfirmacao.push('🙏 Devocional de hoje registrado no seu histórico!')
     }
 
     await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })

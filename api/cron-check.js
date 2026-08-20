@@ -1,4 +1,4 @@
-import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin } from './_cronlib.js'
+import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, BUSCA_DOMI_POR_DIA, PLANO_TREINO_SEMANA } from './_cronlib.js'
 
 function dataIsoBR() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
@@ -52,6 +52,13 @@ export default async function handler(req, res) {
       return min <= agoraMin && min > agoraMin - JANELA_MIN
     }
 
+    function estaNaJanelaAntecedencia(hhmm, minAntes) {
+      const min = paraMinutos(hhmm)
+      if (min === null) return false
+      const alvo = min - minAntes
+      return alvo <= agoraMin && alvo > agoraMin - JANELA_MIN
+    }
+
     const avisos = []
 
     rotina.forEach((item, i) => {
@@ -76,15 +83,66 @@ export default async function handler(req, res) {
     agenda.forEach((ev) => {
       if (ev.data !== hojeIso) return
       if (estaNaJanela(ev.hora)) avisos.push(`📅 ${ev.hora} · ${ev.nome}`)
+      else if (ev.hora && estaNaJanelaAntecedencia(ev.hora, 60)) avisos.push(`⏳ Em 1h: ${ev.hora} · ${ev.nome}`)
     })
 
-    const META_AGUA_ML = 2500
+    const eventosGoogleHoje = await fetchGoogleCalendarEventos(supabase, `${hojeIso}T00:00:00-03:00`, `${hojeIso}T23:59:59-03:00`).catch(() => [])
+    eventosGoogleHoje.forEach((ev) => {
+      if (!ev.start?.dateTime) return
+      const hora = horaLocalBR(ev.start.dateTime)
+      const titulo = ev.summary || '(sem título)'
+      if (estaNaJanela(hora)) avisos.push(`📅 ${hora} · ${titulo} (Google Agenda)`)
+      else if (estaNaJanelaAntecedencia(hora, 60)) avisos.push(`⏳ Em 1h: ${hora} · ${titulo} (Google Agenda)`)
+    })
+
+    const buscaDomiHoje = BUSCA_DOMI_POR_DIA[diaSemanaHoje]
+    if (buscaDomiHoje && estaNaJanela(buscaDomiHoje.sair)) {
+      avisos.push(`🚗 Sair agora para buscar a Domi (sai da escola às ${buscaDomiHoje.busca})`)
+    }
+
+    const META_AGUA_ML = Number(d.dos_meta_agua_ml || 2500)
     const aguaLog = d.dos_agua_log || {}
     const aguaHojeMl = Number(aguaLog[hojeIso] || 0)
     const horaAgora = Math.floor(agoraMin / 60)
     const minutoDentroHora = agoraMin % 60
     if (aguaHojeMl < META_AGUA_ML && horaAgora >= 7 && horaAgora <= 22 && minutoDentroHora < JANELA_MIN) {
       avisos.push(`💧 Hidratação — ${aguaHojeMl} ml de ${META_AGUA_ML} ml hoje (água, chimarrão, suco, água com gás contam)`)
+    }
+
+    const treinoTipoHoje = PLANO_TREINO_SEMANA[diaSemanaHoje]
+    const treinos = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
+    const treinoRegistradoHoje = treinos.some((t) => t.data === hojeIso) || d[`dos_treino_registrado_${hojeIso}`]
+    if (treinoTipoHoje && !treinoRegistradoHoje && agoraMin >= 12 * 60 && agoraMin <= 21 * 60 + 30) {
+      avisos.push(`🏋️ Ainda não registrei o treino de hoje (${treinoTipoHoje}). Feito ou não feito? Me conta pra eu registrar.`)
+    }
+
+    const leituras = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
+    const leituraFeitaHoje = leituras.some((l) => l.data === hojeIso)
+    if (!leituraFeitaHoje && agoraMin >= 21 * 60 && agoraMin <= 23 * 60) {
+      const livroAtual = d.dos_livro_atual || null
+      const nomeLivro = livroAtual?.titulo ? ` — "${livroAtual.titulo}"` : ''
+      avisos.push(`📖 Hora da leitura (20 min)${nomeLivro}. Registre quantas páginas leu e onde parou.`)
+    }
+
+    const casaItens = Array.isArray(d.dos_casa_items) ? d.dos_casa_items : []
+    const casaPendenteHoje = casaItens.filter((i) => !i.done)
+    if (casaPendenteHoje.length > 0 && agoraMin >= 19 * 60 && agoraMin < 19 * 60 + JANELA_MIN) {
+      avisos.push(`🏠 Pendente na Casa: ${casaPendenteHoje.map((i) => i.n).join(', ')}. Já fez alguma coisa? Me conta pra eu registrar.`)
+    }
+
+    if (diaSemanaHoje === 4) {
+      const [{ data: aplicacoesHoje }, { data: schedRows }] = await Promise.all([
+        supabase.from('tirzepatida_applications').select('person,applied_at').gte('applied_at', `${hojeIso}T00:00:00`).lte('applied_at', `${hojeIso}T23:59:59`),
+        supabase.from('tirzepatida_schedule').select('person,planned_dose_mg')
+      ])
+      const jaAplicou = new Set((aplicacoesHoje || []).map((a) => a.person))
+      const doses = {}
+      ;(schedRows || []).forEach((r) => { doses[r.person] = r.planned_dose_mg })
+      const pendentes = ['denise', 'flavio'].filter((p) => !jaAplicou.has(p) && doses[p])
+      if (pendentes.length > 0 && agoraMin >= 8 * 60 && agoraMin <= 21 * 60) {
+        const nomes = pendentes.map((p) => `${p === 'denise' ? 'sua' : 'do Flávio'} (${doses[p]}mg)`).join(' e ')
+        avisos.push(`💉 Hoje é dia de aplicar a tirzepatida — falta registrar a aplicação ${nomes}. Me avise quando aplicar.`)
+      }
     }
 
     if (avisos.length === 0) {
