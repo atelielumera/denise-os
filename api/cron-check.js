@@ -89,9 +89,16 @@ export default async function handler(req, res) {
     })
 
     agenda.forEach((ev) => {
-      if (ev.data !== hojeIso) return
-      if (estaNaJanela(ev.hora)) avisos.push(`📅 ${ev.hora} · ${ev.nome}`)
-      else if (ev.hora && estaNaJanelaAntecedencia(ev.hora, 60)) avisos.push(`⏳ Em 1h: ${ev.hora} · ${ev.nome}`)
+      if (ev.data !== hojeIso || ev.ehMestre) return
+      const lembretes = Array.isArray(ev.lembretes) && ev.lembretes.length > 0 ? ev.lembretes : [0]
+      lembretes.forEach((min) => {
+        if (min === 0) {
+          if (estaNaJanela(ev.hora)) avisos.push(`📅 ${ev.hora} · ${ev.nome}`)
+        } else if (ev.hora && estaNaJanelaAntecedencia(ev.hora, min)) {
+          const antecedencia = min >= 60 ? `${Math.round(min / 60)}h` : `${min} min`
+          avisos.push(`⏳ Em ${antecedencia}: ${ev.hora} · ${ev.nome}`)
+        }
+      })
     })
 
     const eventosGoogleHoje = await fetchGoogleCalendarEventos(supabase, `${hojeIso}T00:00:00-03:00`, `${hojeIso}T23:59:59-03:00`).catch(() => [])

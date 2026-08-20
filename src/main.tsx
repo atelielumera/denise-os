@@ -263,6 +263,20 @@ function Home(){const navigate=useNavigate();
       <button onClick={()=>setShowEditRotina(true)} style={{marginTop:10,width:'100%',background:'transparent',border:`1px dashed ${C.line}`,color:C.acc2,borderRadius:9,padding:'8px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Adicionar</button>
     </div>)
   }
+  const eventosAgendaHome=(()=>{try{return lerEventosAgenda()}catch{return []}})()
+  const googleCacheHome=(()=>{try{return JSON.parse(localStorage.getItem('dos_google_events_cache')||'[]')}catch{return []}})() as any[]
+  const googleIdsHome=new Set(eventosAgendaHome.filter((e:any)=>e.googleEventId).map((e:any)=>e.googleEventId))
+  function horaLocalHome(iso:string){const d=new Date(iso);return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+  const compromissosHojeHome=(()=>{
+    const locais=eventosAgendaHome.filter((e:any)=>!e.ehMestre&&e.data===hojeIsoHome).map((e:any)=>({hora:e.hora,nome:e.nome,cor:e.cor}))
+    const google=googleCacheHome.filter((ev:any)=>!googleIdsHome.has(ev.id)).map((ev:any)=>{
+      const inicio=ev.start?.dateTime||ev.start?.date
+      if(!inicio||!String(inicio).startsWith(hojeIsoHome))return null
+      const hora=ev.start?.dateTime?horaLocalHome(ev.start.dateTime):''
+      return {hora,nome:ev.summary||'(sem título)',cor:'#4285F4'}
+    }).filter(Boolean) as {hora:string,nome:string,cor:string}[]
+    return [...locais,...google].sort((a,b)=>(a.hora||'').localeCompare(b.hora||''))
+  })()
   void tick
   return(<div style={{padding:'20px 22px 40px'}}>
     {showFam&&<ModalFam onClose={()=>{setShowFam(false);forceRefresh()}}/>}
@@ -311,6 +325,18 @@ function Home(){const navigate=useNavigate();
         <button onClick={()=>setShowFam(true)} style={{marginTop:10,width:'100%',background:'transparent',border:`1px dashed ${C.line}`,color:C.acc2,borderRadius:9,padding:'8px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Adicionar</button>
       </div>
       <QuadroHome tema="Desenvolvimento"/>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(12,1fr)',gap:14,marginBottom:14}}>
+      <div style={{gridColumn:'span 12'}}><Card title="📅 Compromissos de hoje" action={<NavLink to="/agenda" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Ver agenda completa →</NavLink>}>
+        {compromissosHojeHome.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum compromisso hoje na agenda.</div>}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:10}}>
+          {compromissosHojeHome.map((e,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:10,background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'9px 12px'}}>
+            <span style={{width:4,height:20,borderRadius:2,background:e.cor,flexShrink:0}}/>
+            <span style={{fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.hora||'Dia todo'}</span>
+            <span style={{fontSize:13,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{e.nome}</span>
+          </div>))}
+        </div>
+      </Card></div>
     </div>
     <div style={{display:'grid',gridTemplateColumns:'repeat(12,1fr)',gap:14}}>
       <div style={{gridColumn:'span 4',background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderRadius:16,padding:18}}>
@@ -531,11 +557,226 @@ function Rotina(){
       </>)
     })()}
   </div>)}
+const CATEGORIAS_AGENDA:Record<string,{label:string,cor:string}>={
+  pessoal:{label:'Pessoal',cor:C.acc2},
+  familia:{label:'Família',cor:C.pink},
+  trabalho:{label:'Trabalho',cor:C.warn},
+  saude:{label:'Saúde',cor:C.ok},
+  casa:{label:'Casa',cor:C.water},
+}
+const LEMBRETE_OPCOES=[{min:0,label:'Na hora'},{min:15,label:'15 min antes'},{min:30,label:'30 min antes'},{min:60,label:'1h antes'},{min:1440,label:'1 dia antes'}]
+const RECORRENCIA_OPCOES=[{v:'nao',label:'Não repete'},{v:'diaria',label:'Diariamente'},{v:'semanal',label:'Semanalmente'},{v:'dias_especificos',label:'Dias específicos'},{v:'mensal',label:'Mensalmente'},{v:'anual',label:'Anualmente'}]
+const DIAS_SEMANA_LABEL=['Dom','Seg','Ter','Qua','Qui','Sex','Sab']
+
+function novoIdEvento(){return 'ev_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+
+function migrarEventoAgenda(e:any):any{
+  const categoria=e.categoria||'pessoal'
+  return {
+    id:e.id||novoIdEvento(),
+    nome:e.nome||'',
+    data:e.data||'',
+    hora:e.hora||'',
+    horaFim:e.horaFim||'',
+    local:e.local||'',
+    descricao:e.descricao||'',
+    categoria,
+    origem:e.origem||'app',
+    pessoa:e.pessoa||'',
+    cor:e.cor||(CATEGORIAS_AGENDA[categoria]?.cor||C.acc2),
+    googleEventId:e.googleEventId||null,
+    recorrencia:e.recorrencia||null,
+    recorrenciaId:e.recorrenciaId||null,
+    ehMestre:!!e.ehMestre,
+    excecoes:Array.isArray(e.excecoes)?e.excecoes:[],
+    lembretes:Array.isArray(e.lembretes)?e.lembretes:[],
+  }
+}
+
+function lerEventosAgenda():any[]{
+  try{
+    const bruto=JSON.parse(localStorage.getItem('dos_agenda')||'[]')
+    if(!Array.isArray(bruto))return []
+    const migrado=bruto.map(migrarEventoAgenda)
+    if(JSON.stringify(bruto)!==JSON.stringify(migrado))localStorage.setItem('dos_agenda',JSON.stringify(migrado))
+    return migrado
+  }catch{return []}
+}
+function salvarEventosAgenda(lista:any[]){localStorage.setItem('dos_agenda',JSON.stringify(lista))}
+
+function pad2Ag(n:number){return String(n).padStart(2,'0')}
+function toISOAg(d:Date){return `${d.getFullYear()}-${pad2Ag(d.getMonth()+1)}-${pad2Ag(d.getDate())}`}
+
+function proximaDataRecorrencia(dataISO:string,tipo:string,diasSemana?:number[]):string{
+  const d=new Date(dataISO+'T12:00:00')
+  if(tipo==='diaria'){d.setDate(d.getDate()+1);return toISOAg(d)}
+  if(tipo==='semanal'){d.setDate(d.getDate()+7);return toISOAg(d)}
+  if(tipo==='dias_especificos'&&diasSemana&&diasSemana.length>0){
+    for(let i=1;i<=14;i++){const t=new Date(d);t.setDate(t.getDate()+i);if(diasSemana.includes(t.getDay()))return toISOAg(t)}
+    return toISOAg(d)
+  }
+  if(tipo==='mensal'){d.setMonth(d.getMonth()+1);return toISOAg(d)}
+  if(tipo==='anual'){d.setFullYear(d.getFullYear()+1);return toISOAg(d)}
+  return toISOAg(d)
+}
+
+function materializarRecorrencia(mestre:any,existentes:any[],horizonteDias=120):any[]{
+  const rec=mestre.recorrencia
+  if(!rec)return []
+  const jaExistem=new Set(existentes.filter(e=>e.recorrenciaId===mestre.id).map(e=>e.data))
+  const excecoes=new Set(mestre.excecoes||[])
+  const limite=toISOAg(new Date(Date.now()+horizonteDias*86400000))
+  const novos:any[]=[]
+  let cursor=mestre.data
+  let contagemTotal=jaExistem.size+excecoes.size
+  const maxOcorrencias=rec.ocorrencias||99999
+  while(contagemTotal<maxOcorrencias&&cursor<=limite&&(!rec.ate||cursor<=rec.ate)){
+    if(!jaExistem.has(cursor)&&!excecoes.has(cursor)){
+      novos.push({...mestre,id:novoIdEvento(),ehMestre:false,recorrencia:null,recorrenciaId:mestre.id,googleEventId:null,data:cursor,excecoes:[]})
+      jaExistem.add(cursor)
+    }
+    contagemTotal++
+    cursor=rec.tipo==='dias_especificos'?proximaDataRecorrencia(cursor,rec.tipo,rec.diasSemana):proximaDataRecorrencia(cursor,rec.tipo)
+  }
+  return novos
+}
+
+async function sincronizarEventoGoogle(evento:any,acao:'criar'|'editar'):Promise<string|null>{
+  try{
+    const resp=await fetch('/api/agenda-sync-google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({acao,googleEventId:evento.googleEventId,evento:{nome:evento.nome,data:evento.data,hora:evento.hora,horaFim:evento.horaFim,local:evento.local,descricao:evento.descricao}})})
+    const j=await resp.json()
+    return j?.google_evento?.id||evento.googleEventId||null
+  }catch{return evento.googleEventId||null}
+}
+async function excluirEventoGoogleSync(googleEventId:string|null|undefined){
+  if(!googleEventId)return
+  try{await fetch('/api/agenda-sync-google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({acao:'excluir',googleEventId})})}catch{}
+}
+
+async function criarEventoAgenda(campos:any):Promise<any>{
+  const categoria=campos.categoria||'pessoal'
+  const base=migrarEventoAgenda({...campos,categoria,cor:campos.cor||CATEGORIAS_AGENDA[categoria]?.cor,origem:campos.origem||'app'})
+  const eventos=lerEventosAgenda()
+  if(campos.recorrencia){
+    const mestre={...base,ehMestre:true,recorrencia:campos.recorrencia,excecoes:[]}
+    const instancias=materializarRecorrencia(mestre,eventos,120)
+    for(const inst of instancias){inst.googleEventId=await sincronizarEventoGoogle(inst,'criar')}
+    salvarEventosAgenda([...eventos,mestre,...instancias])
+    return mestre
+  }
+  const novo={...base}
+  novo.googleEventId=await sincronizarEventoGoogle(novo,'criar')
+  salvarEventosAgenda([...eventos,novo])
+  return novo
+}
+
+async function editarEventoAgenda(id:string,campos:any,escopo:'este'|'futuros'|'serie'):Promise<void>{
+  const eventos=lerEventosAgenda()
+  const alvo=eventos.find(e=>e.id===id)
+  if(!alvo)return
+  if(!alvo.recorrenciaId){
+    const atualizado={...alvo,...campos}
+    atualizado.googleEventId=await sincronizarEventoGoogle(atualizado,atualizado.googleEventId?'editar':'criar')
+    salvarEventosAgenda(eventos.map(e=>e.id===id?atualizado:e))
+    return
+  }
+  const recId=alvo.recorrenciaId
+  if(escopo==='este'){
+    const atualizado={...alvo,...campos}
+    atualizado.googleEventId=await sincronizarEventoGoogle(atualizado,atualizado.googleEventId?'editar':'criar')
+    salvarEventosAgenda(eventos.map(e=>e.id===id?atualizado:e))
+    return
+  }
+  if(escopo==='futuros'){
+    const alvos=eventos.filter(e=>e.recorrenciaId===recId&&e.data>=alvo.data)
+    const atualizados:any[]=[]
+    for(const e of alvos){
+      const at={...e,...campos,data:e.data}
+      at.googleEventId=await sincronizarEventoGoogle(at,at.googleEventId?'editar':'criar')
+      atualizados.push(at)
+    }
+    let novaLista=eventos.map(e=>atualizados.find(a=>a.id===e.id)||e)
+    novaLista=novaLista.map(e=>e.id===recId&&e.ehMestre?{...e,...campos,data:e.data,recorrencia:e.recorrencia}:e)
+    salvarEventosAgenda(novaLista)
+    return
+  }
+  const alvos=eventos.filter(e=>e.recorrenciaId===recId||e.id===recId)
+  const atualizados:any[]=[]
+  for(const e of alvos){
+    const at={...e,...campos,data:e.data,recorrencia:e.recorrencia,ehMestre:e.ehMestre}
+    if(!e.ehMestre)at.googleEventId=await sincronizarEventoGoogle(at,at.googleEventId?'editar':'criar')
+    atualizados.push(at)
+  }
+  salvarEventosAgenda(eventos.map(e=>atualizados.find(a=>a.id===e.id)||e))
+}
+
+async function excluirEventoAgenda(id:string,escopo:'este'|'futuros'|'serie'):Promise<void>{
+  const eventos=lerEventosAgenda()
+  const alvo=eventos.find(e=>e.id===id)
+  if(!alvo)return
+  if(!alvo.recorrenciaId){
+    await excluirEventoGoogleSync(alvo.googleEventId)
+    salvarEventosAgenda(eventos.filter(e=>e.id!==id))
+    return
+  }
+  const recId=alvo.recorrenciaId
+  if(escopo==='este'){
+    await excluirEventoGoogleSync(alvo.googleEventId)
+    salvarEventosAgenda(eventos.filter(e=>e.id!==id).map(e=>e.id===recId?{...e,excecoes:[...(e.excecoes||[]),alvo.data]}:e))
+    return
+  }
+  if(escopo==='futuros'){
+    const remover=eventos.filter(e=>e.recorrenciaId===recId&&e.data>=alvo.data)
+    for(const e of remover)await excluirEventoGoogleSync(e.googleEventId)
+    const idsRemover=new Set(remover.map(e=>e.id))
+    const diaAnterior=toISOAg(new Date(new Date(alvo.data+'T12:00:00').getTime()-86400000))
+    salvarEventosAgenda(eventos.filter(e=>!idsRemover.has(e.id)).map(e=>e.id===recId&&e.ehMestre?{...e,recorrencia:{...e.recorrencia,ate:diaAnterior}}:e))
+    return
+  }
+  const remover=eventos.filter(e=>e.recorrenciaId===recId||e.id===recId)
+  for(const e of remover)await excluirEventoGoogleSync(e.googleEventId)
+  const idsRemover=new Set(remover.map(e=>e.id))
+  salvarEventosAgenda(eventos.filter(e=>!idsRemover.has(e.id)))
+}
+
+async function estenderMaterializacaoAgenda():Promise<void>{
+  const eventos=lerEventosAgenda()
+  const mestres=eventos.filter(e=>e.ehMestre&&e.recorrencia)
+  if(mestres.length===0)return
+  let novaLista=eventos
+  let mudou=false
+  for(const mestre of mestres){
+    const novos=materializarRecorrencia(mestre,novaLista,120)
+    if(novos.length>0){
+      for(const n of novos)n.googleEventId=await sincronizarEventoGoogle(n,'criar')
+      novaLista=[...novaLista,...novos]
+      mudou=true
+    }
+  }
+  if(mudou)salvarEventosAgenda(novaLista)
+}
+
+function detectarConflitosAgenda(evsDoDia:any[],horaIni:string,horaFimP:string,ignorarTitulo?:string):any[]{
+  if(!horaIni)return []
+  const fim=horaFimP||horaIni
+  return evsDoDia.filter(e=>e.time&&e.title!==ignorarTitulo).filter(e=>{
+    const fimE=e.timeFim||e.time
+    return e.time<fim&&horaIni<fimE
+  })
+}
+
 function Agenda(){
   const GOOGLE_CLIENT_ID='386247436984-g828bjjges33iherifnlbk18cfe0u1mj.apps.googleusercontent.com'
   const GOOGLE_SCOPE='https://www.googleapis.com/auth/calendar.events'
-  const [eventos,setEventos]=React.useState<any[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_agenda')||'[]')}catch{return []}})
-  const [novo,setNovo]=React.useState({data:'',hora:'',nome:'',cor:'#38bdf8'})
+  const NOVO_VAZIO={data:'',hora:'',horaFim:'',nome:'',local:'',descricao:'',categoria:'pessoal',cor:CATEGORIAS_AGENDA.pessoal.cor,lembretes:[] as number[],repete:'nao',diasSemana:[] as number[],repeteAte:'',repeteOcorrencias:''}
+  const [eventos,setEventos]=React.useState<any[]>(()=>lerEventosAgenda())
+  const [novo,setNovo]=React.useState<any>(NOVO_VAZIO)
+  const [mostrarMais,setMostrarMais]=React.useState(false)
+  const [eventoEditando,setEventoEditando]=React.useState<any>(null)
+  const [detalheEvento,setDetalheEvento]=React.useState<any>(null)
+  const [escopoPendente,setEscopoPendente]=React.useState<any>(null)
+  const [reagendando,setReagendando]=React.useState<any>(null)
+  const [busca,setBusca]=React.useState('')
   const [schedules,setSchedules]=React.useState<any>({})
   const [saved,setSaved]=React.useState(false)
   const [gToken,setGToken]=React.useState<string>(()=>{
@@ -551,6 +792,8 @@ function Agenda(){
   const [view,setView]=React.useState<'dia'|'semana'|'mes'|'ano'>('mes')
   const [cursor,setCursor]=React.useState(new Date())
   const [medicamentosAg,setMedicamentosAg]=React.useState<Record<string,any[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_medicamentos')||'{}')}catch{return {}}})
+
+  function recarregar(){setEventos(lerEventosAgenda())}
 
   React.useEffect(()=>{
     function refrescarMedicamentos(){
@@ -573,6 +816,7 @@ function Agenda(){
   },[])
 
   React.useEffect(()=>{
+    estenderMaterializacaoAgenda().then(recarregar)
     if(gToken){buscarEventosGoogle(gToken);return}
     tentarReconectarSilencioso()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -615,39 +859,6 @@ function Agenda(){
     window.location.href=url
   }
 
-  function addHora(hhmm:string){
-    const partes=hhmm.split(':').map(Number)
-    const hh=partes[0]||0,mm=partes[1]||0
-    const d=new Date();d.setHours(hh+1,mm,0,0)
-    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
-  }
-
-  function addEvento(){
-    if(!novo.data||!novo.nome)return
-    const n=[...eventos,{...novo}].sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))
-    setEventos(n);localStorage.setItem('dos_agenda',JSON.stringify(n))
-    if(gToken){
-      const body:any={summary:novo.nome}
-      if(novo.hora){
-        body.start={dateTime:`${novo.data}T${novo.hora}:00`,timeZone:'America/Sao_Paulo'}
-        body.end={dateTime:`${novo.data}T${addHora(novo.hora)}:00`,timeZone:'America/Sao_Paulo'}
-      }else{
-        body.start={date:novo.data}
-        body.end={date:novo.data}
-      }
-      fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
-        method:'POST',
-        headers:{Authorization:`Bearer ${gToken}`,'Content-Type':'application/json'},
-        body:JSON.stringify(body)
-      }).then(()=>buscarEventosGoogle(gToken)).catch(()=>{})
-    }
-    setNovo({data:'',hora:'',nome:'',cor:'#38bdf8'});setSaved(true)
-  }
-  function delEvento(idx:number){
-    const n=eventos.filter((_e:any,i:number)=>i!==idx)
-    setEventos(n);localStorage.setItem('dos_agenda',JSON.stringify(n))
-  }
-
   function pad2(n:number){return String(n).padStart(2,'0')}
   function toISO(d:Date){return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`}
   function startOfWeek(d:Date){
@@ -664,7 +875,7 @@ function Agenda(){
   }
   function irHoje(){setCursor(new Date())}
   function atualizarAgenda(){
-    try{setEventos(JSON.parse(localStorage.getItem('dos_agenda')||'[]'))}catch{}
+    recarregar()
     try{setMedicamentosAg(JSON.parse(localStorage.getItem('dos_medicamentos')||'{}'))}catch{}
     supabase.from('tirzepatida_schedule').select('*').then(({data}:any)=>{
       const m:any={}
@@ -674,12 +885,17 @@ function Agenda(){
     if(gToken)buscarEventosGoogle(gToken)
   }
 
-  const localEvs=eventos.map((e:any)=>({date:e.data,time:e.hora,title:e.nome,color:e.cor,source:'local'}))
-  const googleEvs=gEventos.map((ev:any)=>{
+  const eventosVisiveis=eventos.filter((e:any)=>!e.ehMestre)
+  const googleIdsLocais=new Set(eventosVisiveis.filter((e:any)=>e.googleEventId).map((e:any)=>e.googleEventId))
+  const localEvs=eventosVisiveis.map((e:any)=>({id:e.id,date:e.data,time:e.hora,timeFim:e.horaFim||e.hora,title:e.nome,color:e.cor,source:'app' as const,categoria:e.categoria,evento:e}))
+  const googleEvs=gEventos.filter((ev:any)=>!googleIdsLocais.has(ev.id)).map((ev:any)=>{
     const inicio=ev.start?.dateTime||ev.start?.date
+    const fimRaw=ev.end?.dateTime
     const isDate=!!ev.start?.date
     const d=new Date(inicio)
-    return {date:toISO(d),time:isDate?'':`${pad2(d.getHours())}:${pad2(d.getMinutes())}`,title:ev.summary||'(Sem titulo)',color:'#4285F4',source:'google'}
+    const time=isDate?'':`${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+    const timeFim=fimRaw?(()=>{const df=new Date(fimRaw);return `${pad2(df.getHours())}:${pad2(df.getMinutes())}`})():time
+    return {id:ev.id,date:toISO(d),time,timeFim,title:ev.summary||'(Sem titulo)',color:'#4285F4',source:'google' as const,categoria:'',evento:null}
   })
   const medEvs:any[]=[]
   const medKids:Record<string,{nome:string,cor:string}>={domi:{nome:'Domi',cor:C.pink},derick:{nome:'Derick',cor:C.ok}}
@@ -693,27 +909,125 @@ function Agenda(){
         const d=new Date();d.setDate(d.getDate()+off)
         const iso=toISO(d)
         horarios.forEach((h:string)=>{
-          medEvs.push({date:iso,time:h,title:`${m.nome} - ${info.nome}`,color:info.cor,source:'medicamento'})
+          medEvs.push({id:`med_${kid}_${m.nome}_${iso}_${h}`,date:iso,time:h,timeFim:h,title:`${m.nome} - ${info.nome}`,color:info.cor,source:'medicamento' as const,categoria:'saude',evento:null})
         })
       }
     })
   })
   const tirzoEvs:any[]=[]
-  if(schedules.denise?.next_application_date)tirzoEvs.push({date:schedules.denise.next_application_date,time:'',title:'Tirzepatida - Denise',color:C.acc2,source:'tirzo'})
-  if(schedules.flavio?.next_application_date)tirzoEvs.push({date:schedules.flavio.next_application_date,time:'',title:'Tirzepatida - Flavio',color:C.water,source:'tirzo'})
+  if(schedules.denise?.next_application_date)tirzoEvs.push({id:'tirzo_denise',date:schedules.denise.next_application_date,time:'',timeFim:'',title:'Tirzepatida - Denise',color:C.acc2,source:'tirzo' as const,categoria:'saude',evento:null})
+  if(schedules.flavio?.next_application_date)tirzoEvs.push({id:'tirzo_flavio',date:schedules.flavio.next_application_date,time:'',timeFim:'',title:'Tirzepatida - Flavio',color:C.water,source:'tirzo' as const,categoria:'saude',evento:null})
   const allEvs=[...localEvs,...googleEvs,...tirzoEvs,...medEvs]
   const evsByDate:Record<string,any[]>={}
   allEvs.forEach((e:any)=>{(evsByDate[e.date]=evsByDate[e.date]||[]).push(e)})
   Object.values(evsByDate).forEach((arr:any)=>arr.sort((a:any,b:any)=>(a.time||'').localeCompare(b.time||'')))
 
+  const buscaLower=busca.trim().toLowerCase()
+  const resultadosBusca=buscaLower?allEvs.filter((e:any)=>e.title.toLowerCase().includes(buscaLower)||(e.evento?.local||'').toLowerCase().includes(buscaLower)||(e.evento?.descricao||'').toLowerCase().includes(buscaLower)).sort((a:any,b:any)=>(a.date+a.time).localeCompare(b.date+b.time)):[]
+
   function fmtDiaLong(d:Date){return d.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
   function fmtMesAno(d:Date){const s2=d.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});return s2.charAt(0).toUpperCase()+s2.slice(1)}
   function fmtDiaCurto(d:Date){return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
 
-  function excluirEventoUnificado(ev:any){
-    if(ev.source!=='local')return
-    const idx=eventos.findIndex((e:any)=>e.data===ev.date&&e.hora===ev.time&&e.nome===ev.title)
-    if(idx>=0)delEvento(idx)
+  function abrirDetalhe(e:any){setDetalheEvento(e)}
+  function fecharDetalhe(){setDetalheEvento(null)}
+
+  function abrirEdicao(e:any){
+    const ev=e.evento
+    if(!ev||ev.origem!=='app')return
+    setEventoEditando(ev)
+    setNovo({data:ev.data,hora:ev.hora||'',horaFim:ev.horaFim||'',nome:ev.nome,local:ev.local||'',descricao:ev.descricao||'',categoria:ev.categoria||'pessoal',cor:ev.cor||CATEGORIAS_AGENDA[ev.categoria||'pessoal']?.cor,lembretes:ev.lembretes||[],repete:'nao',diasSemana:[],repeteAte:'',repeteOcorrencias:''})
+    setMostrarMais(true)
+    setDetalheEvento(null)
+  }
+
+  function cancelarEdicao(){
+    setEventoEditando(null)
+    setNovo(NOVO_VAZIO)
+    setMostrarMais(false)
+  }
+
+  async function salvarEvento(){
+    if(!novo.data||!novo.nome)return
+    const campos:any={nome:novo.nome,data:novo.data,hora:novo.hora,horaFim:novo.horaFim,local:novo.local,descricao:novo.descricao,categoria:novo.categoria,cor:novo.cor,lembretes:novo.lembretes}
+    if(eventoEditando){
+      if(eventoEditando.recorrenciaId){
+        setEscopoPendente({acao:'editar',id:eventoEditando.id,campos})
+        return
+      }
+      await editarEventoAgenda(eventoEditando.id,campos,'este')
+    }else{
+      if(novo.repete!=='nao'){
+        campos.recorrencia={tipo:novo.repete,diasSemana:novo.diasSemana,ate:novo.repeteAte||undefined,ocorrencias:novo.repeteOcorrencias?Number(novo.repeteOcorrencias):undefined}
+      }
+      await criarEventoAgenda(campos)
+    }
+    finalizarFormulario()
+  }
+
+  function finalizarFormulario(){
+    setNovo(NOVO_VAZIO)
+    setEventoEditando(null)
+    setMostrarMais(false)
+    setSaved(true)
+    recarregar()
+    if(gToken)buscarEventosGoogle(gToken)
+  }
+
+  async function pedirExclusao(e:any){
+    const ev=e.evento
+    if(!ev||ev.origem!=='app')return
+    if(ev.recorrenciaId){setEscopoPendente({acao:'excluir',id:ev.id});return}
+    if(!window.confirm(`Excluir "${ev.nome}"?`))return
+    await excluirEventoAgenda(ev.id,'este')
+    fecharDetalhe()
+    recarregar()
+    if(gToken)buscarEventosGoogle(gToken)
+  }
+
+  async function confirmarEscopo(escopo:'este'|'futuros'|'serie'){
+    if(!escopoPendente)return
+    if(escopoPendente.acao==='editar')await editarEventoAgenda(escopoPendente.id,escopoPendente.campos,escopo)
+    else await excluirEventoAgenda(escopoPendente.id,escopo)
+    setEscopoPendente(null)
+    fecharDetalhe()
+    finalizarFormulario()
+  }
+
+  function abrirReagendar(e:any){
+    const ev=e.evento
+    if(!ev||ev.origem!=='app')return
+    setReagendando({id:ev.id,data:ev.data,hora:ev.hora||'',recorrenciaId:ev.recorrenciaId})
+    setDetalheEvento(null)
+  }
+
+  async function confirmarReagendar(){
+    if(!reagendando)return
+    const campos={data:reagendando.data,hora:reagendando.hora}
+    if(reagendando.recorrenciaId){
+      setEscopoPendente({acao:'editar',id:reagendando.id,campos})
+      setReagendando(null)
+      return
+    }
+    await editarEventoAgenda(reagendando.id,campos,'este')
+    setReagendando(null)
+    recarregar()
+    if(gToken)buscarEventosGoogle(gToken)
+  }
+
+  function toggleLembrete(min:number){
+    setNovo((p:any)=>({...p,lembretes:p.lembretes.includes(min)?p.lembretes.filter((x:number)=>x!==min):[...p.lembretes,min]}))
+  }
+  function toggleDiaSemana(dia:number){
+    setNovo((p:any)=>({...p,diasSemana:p.diasSemana.includes(dia)?p.diasSemana.filter((x:number)=>x!==dia):[...p.diasSemana,dia]}))
+  }
+
+  const conflitosForm=novo.data&&novo.hora?detectarConflitosAgenda(evsByDate[novo.data]||[],novo.hora,novo.horaFim,eventoEditando?.nome):[]
+
+  const origemLabel:Record<string,string>={app:'Denise OS',google:'Google Calendar',medicamento:'Medicamento',tirzo:'Tirzepatida'}
+
+  function ChipEvento({e}:{e:any}){
+    return(<div onClick={(ev)=>{ev.stopPropagation();abrirDetalhe(e)}} style={{fontSize:10.5,padding:'2px 4px',borderRadius:4,background:`${e.color}22`,color:e.color,marginBottom:2,overflow:'hidden',whiteSpace:'nowrap' as const,textOverflow:'ellipsis',cursor:'pointer'}}>{e.time?`${e.time} `:''}{e.title}</div>)
   }
 
   function renderDia(){
@@ -721,11 +1035,11 @@ function Agenda(){
     const evs=evsByDate[diaISO]||[]
     return(<Card title={fmtDiaLong(cursor)}>
       {evs.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum evento neste dia.</div>}
-      {evs.map((e:any,i:number)=>(<div key={i} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.line}`,alignItems:'center'}}>
+      {evs.map((e:any,i:number)=>(<div key={i} onClick={()=>abrirDetalhe(e)} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.line}`,alignItems:'center',cursor:'pointer'}}>
         <span style={{width:42,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.time}</span>
         <span style={{width:4,height:20,borderRadius:2,background:e.color,flexShrink:0}}/>
         <span style={{fontSize:13.5,flex:1}}>{e.title}</span>
-        {e.source==='local'&&<button onClick={()=>excluirEventoUnificado(e)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>}
+        <span style={{fontSize:10,color:'rgba(255,255,255,.35)',flexShrink:0}}>{origemLabel[e.source]||''}</span>
       </div>))}
     </Card>)
   }
@@ -742,8 +1056,8 @@ function Agenda(){
           return(<div key={i} onClick={()=>{setCursor(d);setView('dia')}} style={{background:hoje?'rgba(139,92,246,.12)':C.s2,border:`1px solid ${hoje?C.acc2:C.line}`,borderRadius:10,padding:8,minHeight:120,cursor:'pointer'}}>
             <div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginBottom:4}}>{d.toLocaleDateString('pt-BR',{weekday:'short'})}</div>
             <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>{d.getDate()}</div>
-            {evs.slice(0,4).map((e:any,j:number)=>(<div key={j} style={{fontSize:10.5,padding:'2px 4px',borderRadius:4,background:`${e.color}22`,color:e.color,marginBottom:2,overflow:'hidden',whiteSpace:'nowrap' as const,textOverflow:'ellipsis'}}>{e.title}</div>))}
-            {evs.length>4&&<div style={{fontSize:10,color:'rgba(255,255,255,.4)'}}>+{evs.length-4}</div>}
+            {evs.slice(0,4).map((e:any,j:number)=>(<ChipEvento key={j} e={e}/>))}
+            {evs.length>4&&<div style={{fontSize:10,color:'rgba(255,255,255,.4)'}}>+{evs.length-4} (clique pra ver todos)</div>}
           </div>)
         })}
       </div>
@@ -767,7 +1081,7 @@ function Agenda(){
           const hoje=iso===hojeISO
           return(<div key={i} onClick={()=>{setCursor(d);setView('dia')}} style={{background:hoje?'rgba(139,92,246,.12)':C.s2,border:`1px solid ${hoje?C.acc2:C.line}`,borderRadius:8,padding:5,minHeight:68,opacity:foraDoMes?0.35:1,cursor:'pointer'}}>
             <div style={{fontSize:11.5,fontWeight:hoje?800:600,marginBottom:3}}>{d.getDate()}</div>
-            {evs.slice(0,2).map((e:any,j:number)=>(<div key={j} style={{fontSize:9.5,padding:'1px 3px',borderRadius:3,background:`${e.color}22`,color:e.color,marginBottom:1,overflow:'hidden',whiteSpace:'nowrap' as const,textOverflow:'ellipsis'}}>{e.title}</div>))}
+            {evs.slice(0,2).map((e:any,j:number)=>(<div key={j} onClick={(ev)=>{ev.stopPropagation();abrirDetalhe(e)}} style={{fontSize:9.5,padding:'1px 3px',borderRadius:3,background:`${e.color}22`,color:e.color,marginBottom:1,overflow:'hidden',whiteSpace:'nowrap' as const,textOverflow:'ellipsis',cursor:'pointer'}}>{e.title}</div>))}
             {evs.length>2&&<div style={{fontSize:9,color:'rgba(255,255,255,.4)'}}>+{evs.length-2}</div>}
           </div>)
         })}
@@ -803,6 +1117,16 @@ function Agenda(){
       }
     </div>
     {gErro&&<div style={{background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.3)',borderRadius:10,padding:'8px 12px',fontSize:12.5,color:C.danger,marginBottom:12}}>{gErro}</div>}
+    <div style={{marginBottom:16}}>
+      <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="🔎 Buscar evento por nome, local ou descrição..." style={{width:'100%',background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'10px 14px',color:'#fff',fontSize:13}}/>
+      {buscaLower&&<div style={{marginTop:8,background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'8px 12px',maxHeight:200,overflowY:'auto' as const}}>
+        {resultadosBusca.length===0&&<div style={{fontSize:12.5,color:'rgba(255,255,255,.4)',padding:'6px 0'}}>Nada encontrado.</div>}
+        {resultadosBusca.map((e:any,i:number)=>(<div key={i} onClick={()=>abrirDetalhe(e)} style={{display:'flex',gap:10,padding:'6px 0',borderBottom:i<resultadosBusca.length-1?`1px solid ${C.line}`:'none',cursor:'pointer'}}>
+          <span style={{fontSize:11.5,color:'rgba(255,255,255,.4)',width:110,flexShrink:0}}>{e.date}{e.time?` · ${e.time}`:''}</span>
+          <span style={{fontSize:13,color:e.color}}>{e.title}</span>
+        </div>))}
+      </div>}
+    </div>
     <div style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',marginBottom:16,flexWrap:'wrap' as const,gap:10}}>
       <div style={{display:'flex',gap:6}}>
         {(['dia','semana','mes','ano'] as const).map(v=>(<button key={v} onClick={()=>setView(v)} style={{background:view===v?`linear-gradient(135deg,${C.acc},#7c3aed)`:C.s2,border:`1px solid ${view===v?'transparent':C.line}`,color:'#fff',borderRadius:9,padding:'8px 16px',fontSize:12.5,fontWeight:700,cursor:'pointer',textTransform:'capitalize' as const}}>{v}</button>))}
@@ -821,16 +1145,94 @@ function Agenda(){
       {view==='mes'&&renderMes()}
       {view==='ano'&&renderAno()}
     </div>
-    <Card title="Adicionar evento">
-      {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!{gToken?' (e enviado ao Google Calendar)':''}</div>}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr 1fr',gap:8,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novo.data} onChange={e=>setNovo(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Hora</label><input type="time" value={novo.hora} onChange={e=>setNovo(p=>({...p,hora:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Evento</label><input value={novo.nome} onChange={e=>setNovo(p=>({...p,nome:e.target.value}))} placeholder="Ex: Celula" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Cor</label><input type="color" value={novo.cor} onChange={e=>setNovo(p=>({...p,cor:e.target.value}))} style={{width:'100%',height:36,background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:2,cursor:'pointer'}}/></div>
+    <Card title={eventoEditando?'Editar evento':'Adicionar evento'}>
+      {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!{gToken?' (e sincronizado com o Google Calendar)':''}</div>}
+      {conflitosForm.length>0&&<div style={{background:'rgba(251,191,36,.1)',border:'1px solid rgba(251,191,36,.3)',borderRadius:10,padding:'8px 12px',fontSize:12,color:C.warn,marginBottom:12}}>⚠️ Conflito de horário com: {conflitosForm.map((c:any)=>`${c.title} (${c.time}${c.timeFim&&c.timeFim!==c.time?`–${c.timeFim}`:''})`).join(', ')}</div>}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr',gap:8,marginBottom:10}}>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novo.data} onChange={e=>setNovo((p:any)=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Hora</label><input type="time" value={novo.hora} onChange={e=>setNovo((p:any)=>({...p,hora:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+        <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Evento</label><input value={novo.nome} onChange={e=>setNovo((p:any)=>({...p,nome:e.target.value}))} placeholder="Ex: Célula" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
       </div>
-      <button onClick={addEvento} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Adicionar evento</button>
+      <button onClick={()=>setMostrarMais(m=>!m)} style={{background:'none',border:'none',color:C.acc2,fontSize:12,cursor:'pointer',padding:'4px 0',marginBottom:10}}>{mostrarMais?'▲ Menos opções':'▼ Mais opções'}</button>
+      {mostrarMais&&<div style={{marginBottom:10}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:10}}>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Hora fim</label><input type="time" value={novo.horaFim} onChange={e=>setNovo((p:any)=>({...p,horaFim:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Categoria</label><select value={novo.categoria} onChange={e=>setNovo((p:any)=>({...p,categoria:e.target.value,cor:CATEGORIAS_AGENDA[e.target.value]?.cor||p.cor}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}>{Object.entries(CATEGORIAS_AGENDA).map(([k,v])=>(<option key={k} value={k}>{v.label}</option>))}</select></div>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Cor</label><input type="color" value={novo.cor} onChange={e=>setNovo((p:any)=>({...p,cor:e.target.value}))} style={{width:'100%',height:36,background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:2,cursor:'pointer'}}/></div>
+        </div>
+        <div style={{marginBottom:10}}><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Local</label><input value={novo.local} onChange={e=>setNovo((p:any)=>({...p,local:e.target.value}))} placeholder="Ex: Igreja" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+        <div style={{marginBottom:10}}><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Descrição</label><input value={novo.descricao} onChange={e=>setNovo((p:any)=>({...p,descricao:e.target.value}))} placeholder="Detalhes do evento" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Lembretes</label>
+          <div style={{display:'flex',gap:6,flexWrap:'wrap' as const}}>
+            {LEMBRETE_OPCOES.map(o=>(<button key={o.min} type="button" onClick={()=>toggleLembrete(o.min)} style={{background:novo.lembretes.includes(o.min)?`linear-gradient(135deg,${C.acc},#7c3aed)`:C.s2,border:`1px solid ${novo.lembretes.includes(o.min)?'transparent':C.line}`,color:'#fff',borderRadius:8,padding:'5px 10px',fontSize:11.5,cursor:'pointer'}}>{o.label}</button>))}
+          </div>
+        </div>
+        {!eventoEditando&&<div style={{marginBottom:10}}>
+          <label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Repetir</label>
+          <select value={novo.repete} onChange={e=>setNovo((p:any)=>({...p,repete:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:8}}>{RECORRENCIA_OPCOES.map(o=>(<option key={o.v} value={o.v}>{o.label}</option>))}</select>
+          {novo.repete==='dias_especificos'&&<div style={{display:'flex',gap:6,flexWrap:'wrap' as const,marginBottom:8}}>
+            {DIAS_SEMANA_LABEL.map((lbl,dia)=>(<button key={dia} type="button" onClick={()=>toggleDiaSemana(dia)} style={{background:novo.diasSemana.includes(dia)?`linear-gradient(135deg,${C.acc},#7c3aed)`:C.s2,border:`1px solid ${novo.diasSemana.includes(dia)?'transparent':C.line}`,color:'#fff',borderRadius:8,padding:'5px 10px',fontSize:11.5,cursor:'pointer'}}>{lbl}</button>))}
+          </div>}
+          {novo.repete!=='nao'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div><label style={{fontSize:10.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Repetir até (opcional)</label><input type="date" value={novo.repeteAte} onChange={e=>setNovo((p:any)=>({...p,repeteAte:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+            <div><label style={{fontSize:10.5,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Número de ocorrências (opcional)</label><input type="number" min={1} value={novo.repeteOcorrencias} onChange={e=>setNovo((p:any)=>({...p,repeteOcorrencias:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+          </div>}
+        </div>}
+      </div>}
+      <div style={{display:'flex',gap:8}}>
+        <button onClick={salvarEvento} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>{eventoEditando?'✓ Salvar alterações':'+ Adicionar evento'}</button>
+        {eventoEditando&&<button onClick={cancelarEdicao} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'11px 18px',fontSize:13,cursor:'pointer'}}>Cancelar</button>}
+      </div>
     </Card>
+
+    {detalheEvento&&<div onClick={fecharDetalhe} style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,.6)',display:'grid',placeItems:'center',zIndex:100,padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.s,border:`1px solid ${C.line}`,borderRadius:16,padding:22,maxWidth:420,width:'100%'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+          <span style={{width:10,height:10,borderRadius:5,background:detalheEvento.color,flexShrink:0}}/>
+          <h3 style={{fontSize:16,fontWeight:800,flex:1}}>{detalheEvento.title}</h3>
+        </div>
+        <div style={{fontSize:12.5,color:'rgba(255,255,255,.5)',marginBottom:10}}>{origemLabel[detalheEvento.source]||''}{detalheEvento.categoria?` · ${CATEGORIAS_AGENDA[detalheEvento.categoria]?.label||detalheEvento.categoria}`:''}</div>
+        <div style={{fontSize:13.5,marginBottom:6}}>📅 {detalheEvento.date}{detalheEvento.time?` · ${detalheEvento.time}${detalheEvento.timeFim&&detalheEvento.timeFim!==detalheEvento.time?`–${detalheEvento.timeFim}`:''}`:' (dia todo)'}</div>
+        {detalheEvento.evento?.local&&<div style={{fontSize:13.5,marginBottom:6}}>📍 {detalheEvento.evento.local}</div>}
+        {detalheEvento.evento?.descricao&&<div style={{fontSize:13,color:'rgba(255,255,255,.6)',marginBottom:6}}>{detalheEvento.evento.descricao}</div>}
+        {detalheEvento.evento?.lembretes?.length>0&&<div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:10}}>🔔 {detalheEvento.evento.lembretes.map((m:number)=>LEMBRETE_OPCOES.find(o=>o.min===m)?.label||`${m} min antes`).join(', ')}</div>}
+        <div style={{display:'flex',gap:8,marginTop:14,flexWrap:'wrap' as const}}>
+          {detalheEvento.source==='app'&&<>
+            <button onClick={()=>abrirEdicao(detalheEvento)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px 14px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>✏️ Editar</button>
+            <button onClick={()=>abrirReagendar(detalheEvento)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px 14px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>📅 Reagendar</button>
+            <button onClick={()=>pedirExclusao(detalheEvento)} style={{background:'rgba(248,113,113,.15)',border:'1px solid rgba(248,113,113,.3)',color:C.danger,borderRadius:10,padding:'10px 14px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>🗑️ Excluir</button>
+          </>}
+          <button onClick={fecharDetalhe} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px 16px',fontSize:12.5,cursor:'pointer'}}>Fechar</button>
+        </div>
+      </div>
+    </div>}
+
+    {reagendando&&<div style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,.6)',display:'grid',placeItems:'center',zIndex:105,padding:20}}>
+      <div style={{background:C.s,border:`1px solid ${C.line}`,borderRadius:16,padding:22,maxWidth:340,width:'100%'}}>
+        <h3 style={{fontSize:15,fontWeight:800,marginBottom:14}}>Reagendar evento</h3>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:16}}>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={reagendando.data} onChange={e=>setReagendando((p:any)=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+          <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Hora</label><input type="time" value={reagendando.hora} onChange={e=>setReagendando((p:any)=>({...p,hora:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={confirmarReagendar} style={{flex:1,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Confirmar</button>
+          <button onClick={()=>setReagendando(null)} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px 16px',fontSize:13,cursor:'pointer'}}>Cancelar</button>
+        </div>
+      </div>
+    </div>}
+
+    {escopoPendente&&<div style={{position:'fixed' as const,inset:0,background:'rgba(0,0,0,.6)',display:'grid',placeItems:'center',zIndex:110,padding:20}}>
+      <div style={{background:C.s,border:`1px solid ${C.line}`,borderRadius:16,padding:22,maxWidth:380,width:'100%'}}>
+        <h3 style={{fontSize:15,fontWeight:800,marginBottom:10}}>Esse evento se repete. O que você quer {escopoPendente.acao==='editar'?'editar':'excluir'}?</h3>
+        <div style={{display:'flex',flexDirection:'column' as const,gap:8}}>
+          <button onClick={()=>confirmarEscopo('este')} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,cursor:'pointer'}}>Somente este evento</button>
+          <button onClick={()=>confirmarEscopo('futuros')} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,cursor:'pointer'}}>Este e os próximos</button>
+          <button onClick={()=>confirmarEscopo('serie')} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,cursor:'pointer'}}>Toda a série</button>
+          <button onClick={()=>setEscopoPendente(null)} style={{background:'none',border:'none',color:'rgba(255,255,255,.4)',padding:'6px',fontSize:12.5,cursor:'pointer'}}>Cancelar</button>
+        </div>
+      </div>
+    </div>}
   </div>)
 }
 function Espiritual(){
@@ -1015,17 +1417,12 @@ function Saude(){
     const n={...medicamentos,[kid]:(medicamentos[kid]||[]).filter((_c:any,i:number)=>i!==idx)}
     setMedicamentos(n);localStorage.setItem('dos_medicamentos',JSON.stringify(n))
   }
-  function addConsulta(kid:string){
+  async function addConsulta(kid:string){
     if(!novaConsulta.tipo||!novaConsulta.data)return
     const n={...consuls,[kid]:[{...novaConsulta},...(consuls[kid]||[])]}
     setConsuls(n);localStorage.setItem('dos_consuls',JSON.stringify(n))
     const nomeEvento=`Consulta: ${novaConsulta.tipo}${kid?` (${kid.charAt(0).toUpperCase()+kid.slice(1)})`:''}`
-    try{
-      const agendaAtual=JSON.parse(localStorage.getItem('dos_agenda')||'[]')
-      const agendaNova=[...agendaAtual,{data:novaConsulta.data,hora:'',nome:nomeEvento,cor:'#38bdf8'}].sort((a:any,b:any)=>(a.data+a.hora).localeCompare(b.data+b.hora))
-      localStorage.setItem('dos_agenda',JSON.stringify(agendaNova))
-    }catch{}
-    fetch('/api/agenda-sync-google',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({nome:nomeEvento,data:novaConsulta.data})}).catch(()=>{})
+    await criarEventoAgenda({nome:nomeEvento,data:novaConsulta.data,hora:'',categoria:'saude',origem:'saude',pessoa:kid,descricao:novaConsulta.obs||''})
     setNovaConsulta({tipo:'',data:'',obs:'',proximo:''});setSavedC(true)
   }
   function delConsulta(kid:string,idx:number){
@@ -1640,6 +2037,19 @@ function Familia(){
   const [local,setLocal]=React.useState(JSON.parse(JSON.stringify(fam)))
   const days:[number,string][]=[[1,'Seg'],[2,'Ter'],[3,'Qua'],[4,'Qui'],[5,'Sex']]
   const membros=[{id:'denise',nome:'Denise',papel:'Você · mãe',cor:'#8b5cf6'},{id:'flavio',nome:'Flávio',papel:'Pai',cor:'#38bdf8'},{id:'domi',nome:'Domi',papel:'Filha · escola',cor:'#f472b6'},{id:'derick',nome:'Derick',papel:'Filho · escola',cor:'#34d399'}]
+  const [eventosFam]=React.useState<any[]>(()=>lerEventosAgenda())
+  const hojeIsoFam=isoBR(new Date())
+  const compromissosFamilia=(()=>{
+    const relevantes=eventosFam.filter((e:any)=>!e.ehMestre&&e.data>=hojeIsoFam&&(e.categoria==='familia'||e.pessoa==='domi'||e.pessoa==='derick'))
+    const vistos=new Set<string>()
+    const unicos:any[]=[]
+    relevantes.sort((a:any,b:any)=>(a.data+a.hora).localeCompare(b.data+b.hora)).forEach((e:any)=>{
+      const chave=e.recorrenciaId||e.id
+      if(vistos.has(chave))return
+      vistos.add(chave);unicos.push(e)
+    })
+    return unicos.slice(0,5)
+  })()
   type Aval={data:string,tipo:string,obs:string,feito:boolean}
   const [avals,setAvals]=React.useState<Record<string,Aval[]>>(()=>{
     try{
@@ -1763,6 +2173,15 @@ function Familia(){
         </table>
       </Card>
     </div>
+    <Card title="📅 Próximos compromissos da família">
+      {compromissosFamilia.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum compromisso de família nos próximos dias.</div>}
+      {compromissosFamilia.map((e:any,i:number)=>(<div key={i} style={{display:'flex',gap:12,padding:'10px 0',borderBottom:i<compromissosFamilia.length-1?`1px solid ${C.line}`:'none',alignItems:'center'}}>
+        <span style={{width:80,fontSize:12,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.data}{e.hora?` · ${e.hora}`:''}</span>
+        <span style={{width:4,height:20,borderRadius:2,background:e.cor,flexShrink:0}}/>
+        <span style={{fontSize:13.5,flex:1}}>{e.nome}</span>
+        {e.pessoa&&<span style={{fontSize:11,color:'rgba(255,255,255,.4)',flexShrink:0}}>{e.pessoa==='domi'?'Domi':'Derick'}</span>}
+      </div>))}
+    </Card>
     <Card title="📚 Calendário Avaliativo Escolar">
       <div style={{display:'flex',gap:8,marginBottom:16}}>
         {(['domi','derick'] as const).map(k=>(<button key={k} onClick={()=>setAbaKid(k)} style={{padding:'8px 18px',borderRadius:20,border:`2px solid ${abaKid===k?(k==='domi'?C.pink:C.ok):'rgba(255,255,255,.1)'}`,background:abaKid===k?`rgba(${k==='domi'?'244,114,182':'52,211,153'},.1)`:'transparent',color:'#fff',cursor:'pointer',fontWeight:600,fontSize:14}}>{k==='domi'?'Domi':'Derick'}</button>))}
@@ -2130,6 +2549,7 @@ function Assistente(){
       ...agendaLocal.map((e:any)=>({data:e.data,hora:e.hora,titulo:e.nome,origem:'app'})),
       ...agendaGoogle.map((ev:any)=>{const dtEv=ev.start?.dateTime?new Date(ev.start.dateTime):null;return{data:(ev.start?.dateTime||ev.start?.date||'').slice(0,10),hora:dtEv?`${String(dtEv.getHours()).padStart(2,'0')}:${String(dtEv.getMinutes()).padStart(2,'0')}`:'',titulo:ev.summary||'(sem titulo)',origem:'google_calendar'}}),
     ].filter(e=>e.data>=hojeIso&&e.data<=em7diasIso).sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora))
+    const agendaEditavel=lerEventosAgenda().filter((e:any)=>!e.ehMestre&&e.data>=hojeIso).slice(0,60).map((e:any)=>({id:e.id,nome:e.nome,data:e.data,hora:e.hora,categoria:e.categoria,local:e.local}))
     return {
       data_hoje:hojeIso,
       tirzepatida:Object.keys(tzSched).length>0?{estoque_atual_mg:tzBalance,denise:tzSched.denise||null,flavio:tzSched.flavio||null}:null,
@@ -2139,10 +2559,46 @@ function Assistente(){
       livro_atual:livroI,
       contas_vencendo_7dias:contasVencendo.map((c:any)=>({nome:c.n,vencimento:c.venc})),
       agenda_proximos_7dias:agendaProximos7Dias,
+      agenda_eventos_editaveis_pela_luna:agendaEditavel,
       rotina_de_hoje:rotinaItensI.map((it:any,i:number)=>({horario:it.t,nome:it.n,categoria:it.cat,feito_hoje:rotinaDoneHoje.includes(i)})),
       medicamentos:medicamentosI,
       trabalho_tarefas:trabalhoI,
     }
+  }
+
+  function extrairAcaoAgenda(texto:string):{textoLimpo:string,acao:any|null}{
+    const m=/```agenda_action\s*([\s\S]*?)```/.exec(texto||'')
+    if(!m)return {textoLimpo:texto||'',acao:null}
+    let acao=null
+    try{acao=JSON.parse(m[1].trim())}catch{}
+    const textoLimpo=(texto.slice(0,m.index)+texto.slice(m.index+m[0].length)).trim()
+    return {textoLimpo:textoLimpo||'Ok!',acao}
+  }
+
+  const [acaoPendente,setAcaoPendente]=React.useState<any>(null)
+
+  async function confirmarAcaoLuna(){
+    if(!acaoPendente)return
+    try{
+      if(acaoPendente.acao==='criar'){
+        await criarEventoAgenda(acaoPendente.evento||{})
+        setMsgsAtual(m=>[...m,{me:false,t:'✅ Evento criado na agenda e sincronizado com o Google Calendar.'}])
+      }else if(acaoPendente.acao==='editar'&&acaoPendente.id){
+        await editarEventoAgenda(acaoPendente.id,acaoPendente.evento||{},'este')
+        setMsgsAtual(m=>[...m,{me:false,t:'✅ Evento atualizado na agenda.'}])
+      }else if(acaoPendente.acao==='excluir'&&acaoPendente.id){
+        await excluirEventoAgenda(acaoPendente.id,'este')
+        setMsgsAtual(m=>[...m,{me:false,t:'✅ Evento excluído da agenda e do Google Calendar.'}])
+      }
+    }catch{
+      setMsgsAtual(m=>[...m,{me:false,t:'😕 Não consegui concluir essa ação na agenda agora.'}])
+    }
+    setAcaoPendente(null)
+  }
+
+  function cancelarAcaoLuna(){
+    setMsgsAtual(m=>[...m,{me:false,t:'Combinado, não fiz nenhuma alteração na agenda.'}])
+    setAcaoPendente(null)
   }
 
   async function send(extra?:{audio?:{mediaType:string,base64:string}}){
@@ -2171,7 +2627,9 @@ function Assistente(){
       })})
       const data=await resp.json()
       if(!resp.ok) throw new Error(data?.error||'Erro ao falar com a Luna.')
-      setMsgsAtual(m=>[...m,{me:false,t:data.reply}])
+      const {textoLimpo,acao}=extrairAcaoAgenda(data.reply)
+      setMsgsAtual(m=>[...m,{me:false,t:textoLimpo}])
+      if(acao)setAcaoPendente(acao)
     }catch(err:any){
       setMsgsAtual(m=>[...m,{me:false,t:'😕 '+(err?.message||'Não consegui responder agora. Tenta de novo?')}])
     }
@@ -2232,6 +2690,13 @@ function Assistente(){
       <div style={{flex:1,overflowY:'auto' as const,display:'flex',flexDirection:'column' as const,gap:12,paddingBottom:12}}>
         {msgs.map((m,i)=>(<div key={i} style={{maxWidth:'80%',padding:'11px 14px',borderRadius:14,fontSize:13.5,lineHeight:1.5,alignSelf:m.me?'flex-end':'flex-start',background:m.me?`linear-gradient(135deg,${C.acc},#7c3aed)`:'rgba(255,255,255,.06)',border:m.me?'none':`1px solid ${C.line}`,whiteSpace:'pre-wrap' as const}}>{m.t}</div>))}
         {sending&&<div style={{alignSelf:'flex-start',padding:'11px 14px',borderRadius:14,fontSize:13.5,background:'rgba(255,255,255,.06)',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.5)'}}>Luna está digitando…</div>}
+        {acaoPendente&&<div style={{alignSelf:'flex-start',maxWidth:'85%',padding:'12px 14px',borderRadius:14,fontSize:13,background:'rgba(139,92,246,.1)',border:`1px solid rgba(139,92,246,.3)`}}>
+          <div style={{marginBottom:10,color:'rgba(255,255,255,.8)'}}>Confirma essa ação na agenda ({acaoPendente.acao==='criar'?'criar evento':acaoPendente.acao==='editar'?'editar evento':'excluir evento'}{acaoPendente.evento?.nome?`: "${acaoPendente.evento.nome}"`:''}{acaoPendente.evento?.data?` em ${acaoPendente.evento.data}${acaoPendente.evento?.hora?` às ${acaoPendente.evento.hora}`:''}`:''})?</div>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={confirmarAcaoLuna} style={{background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:9,padding:'8px 14px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>✓ Confirmar</button>
+            <button onClick={cancelarAcaoLuna} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px 14px',fontSize:12.5,cursor:'pointer'}}>Cancelar</button>
+          </div>
+        </div>}
       </div>
       {pendingImg&&<div style={{display:'flex',alignItems:'center',gap:8,margin:'8px 0',background:'rgba(255,255,255,.05)',border:`1px solid ${C.line}`,borderRadius:10,padding:8}}>
         <img src={pendingImg.preview} style={{width:44,height:44,borderRadius:8,objectFit:'cover' as const}}/>

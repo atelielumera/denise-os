@@ -131,24 +131,54 @@ function addHoraStr(hhmm) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-export async function insertGoogleCalendarEvento(supabase, { nome, data, hora }) {
-  const accessToken = await getGoogleAccessToken(supabase)
-  if (!accessToken) return null
-  const body = { summary: nome }
+function montarGoogleBody({ nome, data, hora, horaFim, local, descricao }) {
+  const body = { summary: nome || '(sem título)' }
+  if (local) body.location = local
+  if (descricao) body.description = descricao
   if (hora) {
     body.start = { dateTime: `${data}T${hora}:00`, timeZone: 'America/Sao_Paulo' }
-    body.end = { dateTime: `${data}T${addHoraStr(hora)}:00`, timeZone: 'America/Sao_Paulo' }
+    body.end = { dateTime: `${data}T${horaFim || addHoraStr(hora)}:00`, timeZone: 'America/Sao_Paulo' }
   } else {
     body.start = { date: data }
     body.end = { date: data }
   }
+  return body
+}
+
+export async function insertGoogleCalendarEvento(supabase, evento) {
+  const accessToken = await getGoogleAccessToken(supabase)
+  if (!accessToken) return null
   const resp = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
     method: 'POST',
     headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(montarGoogleBody(evento))
   })
   if (!resp.ok) return null
   return await resp.json()
+}
+
+export async function updateGoogleCalendarEvento(supabase, googleEventId, evento) {
+  if (!googleEventId) return null
+  const accessToken = await getGoogleAccessToken(supabase)
+  if (!accessToken) return null
+  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(googleEventId)}`, {
+    method: 'PATCH',
+    headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
+    body: JSON.stringify(montarGoogleBody(evento))
+  })
+  if (!resp.ok) return null
+  return await resp.json()
+}
+
+export async function deleteGoogleCalendarEvento(supabase, googleEventId) {
+  if (!googleEventId) return true
+  const accessToken = await getGoogleAccessToken(supabase)
+  if (!accessToken) return false
+  const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(googleEventId)}`, {
+    method: 'DELETE',
+    headers: { authorization: `Bearer ${accessToken}` }
+  })
+  return resp.ok || resp.status === 410 || resp.status === 404
 }
 
 export function getSupabaseAdmin() {
