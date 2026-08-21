@@ -1725,18 +1725,9 @@ function Saude(){
   const [novaConsulta,setNovaConsulta]=React.useState({tipo:'',data:'',obs:'',proximo:''})
   const [novaCrianca,setNovaCrianca]=React.useState({peso:'',altura:'',obs:''})
   const [savedC,setSavedC]=React.useState(false)
-  const [extrasF,setExtrasF]=React.useState<SReg[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_saude_extra_flavio')||'null');return v||[{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}catch{return [{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}})
-  const [pesoF,setPesoF]=React.useState('')
-  const [savedF,setSavedF]=React.useState(false)
-  const [humorF,setHumorF]=React.useState('')
-  const [energiaF,setEnergiaF]=React.useState('')
-  const [intestinoF,setIntestinoF]=React.useState('')
-  const [sintF,setSintF]=React.useState('')
-  const [sonoF,setSonoF]=React.useState('')
+  const [extrasF]=React.useState<SReg[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_saude_extra_flavio')||'null');return v||[{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}catch{return [{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}})
   const [medD]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_denise')||'null');return v||[{data:'04/06',pescoco:0,ombro:37,peito:91,cintura:73,bracE:25,bracD:25.5,antebracoE:19.5,antebracoD:19,abdSup:78,abdInf:81,coxaE:48,coxaD:49,panturE:31,panturD:33,quadril:91.5}]}catch{return []}})
-  const [medF,setMedF]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_flavio')||'null');return v||[{data:'29/07',pescoco:41,ombro:42,peito:99,cintura:100,bracE:33,bracD:33,antebracoE:28,antebracoD:29,abdSup:96,abdInf:103,coxaE:56,coxaD:55,panturE:42,panturD:42,quadril:108}]}catch{return []}})
-  const [novaMedF,setNovaMedF]=React.useState({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
-  const [savedMedF,setSavedMedF]=React.useState(false)
+  const [medF]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_flavio')||'null');return v||[{data:'29/07',pescoco:41,ombro:42,peito:99,cintura:100,bracE:33,bracD:33,antebracoE:28,antebracoD:29,abdSup:96,abdInf:103,coxaE:56,coxaD:55,panturE:42,panturD:42,quadril:108}]}catch{return []}})
   const [aguaDenise,setAguaDenise]=React.useState(lerAguaHoje)
   function addAguaDenise(ml:number){const n=Math.min(aguaDenise+ml,6000);setAguaDenise(n);salvarAguaHoje(n)}
   const [aguaFlavio,setAguaFlavio]=React.useState<number>(()=>Number(lerLogMarcador('dos_agua_log_flavio')[isoBR(new Date())]||0))
@@ -1748,7 +1739,6 @@ function Saude(){
   const [skincareLogF,setSkincareLogF]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_skincare_flavio'))
   const [probioticosLog,setProbioticosLog]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_probioticos'))
   const [probioticosLogF,setProbioticosLogF]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_probioticos_flavio'))
-  const [gorduraInF,setGorduraInF]=React.useState('')
   const [periodoPeso,setPeriodoPeso]=React.useState<'7'|'30'|'90'|'365'>('30')
   const [diaSelecionado,setDiaSelecionado]=React.useState(()=>isoBR(new Date()))
   const [cresModo,setCresModo]=React.useState<'peso'|'altura'>('peso')
@@ -1862,19 +1852,6 @@ function Saude(){
   const displayList=[...[...OKOK].reverse(),...extras]
   const pesoAtual=displayList[0].peso
   const pesoAtualF=extrasF[0].peso
-  function salvarFlavio(){
-    if(!pesoF&&!gorduraInF)return
-    const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(pesoF)||0,imc:0,gordura:Number(gorduraInF)||0,humor:Number(humorF)||0,energia:Number(energiaF)||0,intestino:intestinoF,sint:sintF,sono:Number(sonoF)||0}
-    const n=[reg,...extrasF];setExtrasF(n);localStorage.setItem('dos_saude_extra_flavio',JSON.stringify(n))
-    setSavedF(true);setPesoF('');setHumorF('');setEnergiaF('');setIntestinoF('');setSintF('');setGorduraInF('');setSonoF('')
-  }
-  function addMedF(){
-    const has=Object.values(novaMedF).some(v=>v!=='')
-    if(!has)return
-    const reg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),pescoco:Number(novaMedF.pescoco)||0,ombro:Number(novaMedF.ombro)||0,peito:Number(novaMedF.peito)||0,cintura:Number(novaMedF.cintura)||0,bracE:Number(novaMedF.bracE)||0,bracD:Number(novaMedF.bracD)||0,antebracoE:Number(novaMedF.antebracoE)||0,antebracoD:Number(novaMedF.antebracoD)||0,abdSup:Number(novaMedF.abdSup)||0,abdInf:Number(novaMedF.abdInf)||0,coxaE:Number(novaMedF.coxaE)||0,coxaD:Number(novaMedF.coxaD)||0,panturE:Number(novaMedF.panturE)||0,panturD:Number(novaMedF.panturD)||0,quadril:Number(novaMedF.quadril)||0}
-    const n=[reg,...medF];setMedF(n);localStorage.setItem('dos_medidas_flavio',JSON.stringify(n))
-    setSavedMedF(true);setNovaMedF({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
-  }
   const [medicamentos,setMedicamentos]=React.useState<Record<string,any[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_medicamentos')||'{}')}catch{return {}}})
   const [novoMed,setNovoMed]=React.useState({nome:'',dosagem:'',frequencia:'',horarios:'',ate:''})
   function addMedicamento(kid:string){
@@ -2273,92 +2250,6 @@ function Saude(){
 
     {aba==='flavio'&&<div>
       {renderAdulto({pessoa:'flavio',nome:'Flávio',cor:C.water,variant:'medidas'})}
-      <div id="card-registrar-flavio" style={{marginTop:16}}>
-        <Card title="Registrar hoje - Flavio">
-          {savedF&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Peso (kg)</label><input type="number" step="0.1" value={pesoF} onChange={e=>setPesoF(e.target.value)} placeholder="95,2" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Humor (1-10)</label><input type="number" min="1" max="10" value={humorF} onChange={e=>setHumorF(e.target.value)} placeholder="8" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Energia (1-10)</label><input type="number" min="1" max="10" value={energiaF} onChange={e=>setEnergiaF(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Intestino</label><select value={intestinoF} onChange={e=>setIntestinoF(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}><option value="">-</option><option>Regular</option><option>Preso</option><option>Solto</option></select></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Sono (horas)</label><input type="number" step="0.5" min="0" max="24" value={sonoF} onChange={e=>setSonoF(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Gordura corporal (%)</label><input type="number" step="0.1" value={gorduraInF} onChange={e=>setGorduraInF(e.target.value)} placeholder="Opcional" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-          </div>
-          <input value={sintF} onChange={e=>setSintF(e.target.value)} placeholder="Sintomas" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
-          <button onClick={salvarFlavio} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar</button>
-          <div style={{marginTop:14,borderTop:`1px solid ${C.line}`,paddingTop:12}}>
-            <div style={{fontSize:12,fontWeight:700,marginBottom:8}}>Medidas (29/07)</div>
-            {[['Cintura','100 cm'],['Quadril','108 cm'],['Peito','99 cm'],['Coxa E/D','56/55 cm'],['Abd Sup/Inf','96/103 cm']].map(([k,v])=>(<div key={k} style={{display:'flex',justifyContent:'space-between' as const,fontSize:12,padding:'4px 0',borderBottom:`1px solid ${C.line}`,color:'rgba(255,255,255,.6)'}}><span>{k}</span><span style={{color:C.acc2}}>{v}</span></div>))}
-          </div>
-        </Card>
-      </div>
-      <Card title="Medidas iniciais completas - Flavio Dantas (29/07/2026)">
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-          {[['Pescoco','41'],['Ombro','42'],['Peito','99'],['Cintura','100'],['Braco E/D','33/33'],['Antebraco E/D','28/29'],['Abd Superior','96'],['Abd Inferior','103'],['Coxa E/D','56/55'],['Panturrilha','42/42'],['Quadril','108']].map(([k,v])=>(<div key={k} style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'10px',textAlign:'center' as const}}><div style={{fontSize:16,fontWeight:800,color:C.water}}>{v} cm</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:2}}>{k}</div></div>))}
-        </div>
-        <p style={{fontSize:11,color:'rgba(255,255,255,.4)',marginTop:12}}>Registros iniciais SecaVita.</p>
-      </Card>
-      <Card title="Registrar novas medidas - Flavio">
-        {savedMedF&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:10}}>
-          {[['pescoco','Pescoco'],['ombro','Ombro'],['peito','Peito'],['cintura','Cintura'],['bracE','Braco E'],['bracD','Braco D'],['antebracoE','Antebraco E'],['antebracoD','Antebraco D'],['abdSup','Abd Sup'],['abdInf','Abd Inf'],['coxaE','Coxa E'],['coxaD','Coxa D'],['panturE','Panturr E'],['panturD','Panturr D'],['quadril','Quadril']].map(([f,l])=>(<div key={f}><label style={{fontSize:10,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>{l}</label><input type="number" step="0.5" value={(novaMedF as any)[f]} onChange={e=>setNovaMedF(p=>({...p,[f]:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'6px 7px',color:'#fff',fontSize:11}}/></div>))}
-        </div>
-        <button onClick={addMedF} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar medidas</button>
-      </Card>
-      <Card title="Evolucao da cintura - Flavio">
-        <div style={{height:100,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
-          {[...medF].reverse().map((d,i)=>{
-            const vals=medF.map(x=>x.cintura)
-            const mn=Math.min(...vals)-1,mx=Math.max(...vals)+1
-            const barH=Math.max(Math.round(((d.cintura-mn)/(mx-mn))*95),3)
-            return(<div key={i} title={`${d.data}: ${d.cintura}cm`} style={{width:24,flexShrink:0,borderRadius:'2px 2px 1px 1px',background:`linear-gradient(180deg,${C.water},#0369a1)`,height:barH,alignSelf:'flex-end'}}/>)
-          })}
-        </div>
-        <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
-          <span>{medF[medF.length-1].data}: {medF[medF.length-1].cintura}cm</span><span>atual: {medF[0].cintura}cm</span>
-        </div>
-      </Card>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginTop:16}}>
-        <Card title="Consultas — Flávio">
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Tipo</label>
-            <select value={novaConsulta.tipo} onChange={e=>setNovaConsulta(p=>({...p,tipo:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}>
-              <option value="">Selecionar</option><option>Clínico Geral</option><option>Urologia</option><option>Dentista</option><option>Nutrição</option><option>Exame</option><option>Outro</option>
-            </select></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novaConsulta.data} onChange={e=>setNovaConsulta(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
-          </div>
-          <input value={novaConsulta.obs} onChange={e=>setNovaConsulta(p=>({...p,obs:e.target.value}))} placeholder="Observações / diagnóstico" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:8}}/>
-          <input value={novaConsulta.proximo} onChange={e=>setNovaConsulta(p=>({...p,proximo:e.target.value}))} placeholder="Próxima consulta" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
-          <button onClick={()=>addConsulta('flavio')} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar consulta</button>
-          {(consuls.flavio||[]).length>0&&<div style={{marginTop:12}}>
-            {(consuls.flavio||[]).map((c,i)=>(<div key={i} style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
-              <div style={{display:'flex',justifyContent:'space-between' as const,marginBottom:3}}><span style={{fontWeight:700,fontSize:13,color:C.water}}>{c.tipo}</span><span style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'flex',alignItems:'center',gap:8}}>{c.data}<button onClick={()=>delConsulta('flavio',i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button></span></div>
-              {c.obs&&<div style={{fontSize:12,color:'rgba(255,255,255,.6)'}}>{c.obs}</div>}
-              {c.proximo&&<div style={{fontSize:11,color:C.warn,marginTop:3}}>📅 Próxima: {c.proximo}</div>}
-            </div>))}
-          </div>}
-          {(consuls.flavio||[]).length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhuma consulta registrada.</div>}
-        </Card>
-        <Card title="Medicamentos — Flávio">
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Medicamento</label><input value={novoMed.nome} onChange={e=>setNovoMed(p=>({...p,nome:e.target.value}))} placeholder="Ex: Losartana" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Dosagem</label><input value={novoMed.dosagem} onChange={e=>setNovoMed(p=>({...p,dosagem:e.target.value}))} placeholder="Ex: 50mg" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Frequência</label><input value={novoMed.frequencia} onChange={e=>setNovoMed(p=>({...p,frequencia:e.target.value}))} placeholder="Ex: 1x ao dia" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Horários</label><input value={novoMed.horarios} onChange={e=>setNovoMed(p=>({...p,horarios:e.target.value}))} placeholder="Ex: 08:00" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-          
-            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Repetir até (opcional)</label><input type="date" value={novoMed.ate} onChange={e=>setNovoMed(p=>({...p,ate:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
-          </div>
-          <p style={{fontSize:10.5,color:'rgba(255,255,255,.35)',marginBottom:10}}>Preenchendo os horários, o medicamento aparece todo dia na Agenda automaticamente.</p>
-          <button onClick={()=>addMedicamento('flavio')} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar medicamento</button>
-          {(medicamentos.flavio||[]).length>0&&<div style={{marginTop:12}}>
-            {(medicamentos.flavio||[]).map((m:any,i:number)=>(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
-              <div><span style={{fontWeight:700,fontSize:13,color:C.water}}>{m.nome}</span><span style={{fontSize:12,color:'rgba(255,255,255,.5)',marginLeft:8}}>{m.dosagem}{m.frequencia?` - ${m.frequencia}`:''}{m.horarios?` - ${m.horarios}`:''}{m.ate?` · até ${m.ate.slice(8,10)}/${m.ate.slice(5,7)}`:''}</span></div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{m.data}</span><button onClick={()=>delMedicamento('flavio',i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button></div>
-            </div>))}
-          </div>}
-          {(medicamentos.flavio||[]).length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum medicamento registrado.</div>}
-        </Card>
-      </div>
     </div>}
 
     {aba==='domi'&&<div>{renderCrianca('domi','Domi',C.pink,'#9d174d')}</div>}
