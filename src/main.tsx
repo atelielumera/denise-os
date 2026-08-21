@@ -1623,6 +1623,86 @@ function Espiritual(){
     </div>
   </div>)
 }
+function lerLogMarcador(chave:string):Record<string,string>{try{return JSON.parse(localStorage.getItem(chave)||'{}')}catch{return {}}}
+function marcarHoje(chave:string,setState:(v:Record<string,string>)=>void){
+  const log=lerLogMarcador(chave)
+  const hoje=isoBR(new Date())
+  const n={...log,[hoje]:new Date().toTimeString().slice(0,5)}
+  localStorage.setItem(chave,JSON.stringify(n));setState(n)
+}
+function classificarIMC(imc:number){
+  if(!imc)return {label:'—',cor:'rgba(255,255,255,.4)'}
+  if(imc<18.5)return {label:'Abaixo do peso',cor:C.warn}
+  if(imc<25)return {label:'Saudável',cor:C.ok}
+  if(imc<30)return {label:'Sobrepeso',cor:C.warn}
+  return {label:'Atenção',cor:C.danger}
+}
+function deltaInfo(atual:number|null|undefined,anterior:number|null|undefined,casas=1,unidade=''){
+  if(atual==null||anterior==null||!isFinite(atual)||!isFinite(anterior))return null
+  const dif=Math.round((atual-anterior)*Math.pow(10,casas))/Math.pow(10,casas)
+  if(dif===0)return {texto:`Estável`,cor:'rgba(255,255,255,.4)',seta:'▬'}
+  const sinal=dif>0?'▲':'▼'
+  return {texto:`${sinal} ${Math.abs(dif).toFixed(casas).replace('.',',')}${unidade}`,cor:dif>0?C.danger:C.ok,seta:sinal}
+}
+function paraDataAproxDDMM(ddmm:string,anoPadrao:number){
+  const m=/^(\d{2})\/(\d{2})$/.exec(ddmm)
+  if(!m)return null
+  const hojeStr=isoBR(new Date())
+  const candAtual=`${anoPadrao}-${m[2]}-${m[1]}`
+  return candAtual<=hojeStr?candAtual:`${anoPadrao-1}-${m[2]}-${m[1]}`
+}
+function DonutComposicao({segmentos,centroValor,centroLabel}:{segmentos:{valor:number,cor:string,label:string}[],centroValor:string,centroLabel:string}){
+  const total=segmentos.reduce((a,s)=>a+s.valor,0)
+  if(total<=0)return <div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0'}}>Sem dados suficientes ainda.</div>
+  let acc=0
+  const stops=segmentos.map(s=>{const de=acc/total*360;acc+=s.valor;const ate=acc/total*360;return `${s.cor} ${de}deg ${ate}deg`}).join(',')
+  return(<div style={{display:'flex',alignItems:'center',gap:18,flexWrap:'wrap' as const}}>
+    <div style={{width:132,height:132,borderRadius:'50%',background:`conic-gradient(${stops})`,position:'relative' as const,flexShrink:0}}>
+      <div style={{position:'absolute' as const,inset:18,borderRadius:'50%',background:'#131320',display:'flex',flexDirection:'column' as const,alignItems:'center',justifyContent:'center'}}>
+        <div style={{fontSize:15,fontWeight:800}}>{centroValor}</div>
+        <div style={{fontSize:9.5,color:'rgba(255,255,255,.4)'}}>{centroLabel}</div>
+      </div>
+    </div>
+    <div style={{flex:1,minWidth:120}}>
+      {segmentos.map(s=>(<div key={s.label} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0'}}>
+        <span style={{width:9,height:9,borderRadius:3,background:s.cor,flexShrink:0}}/>
+        <span style={{flex:1,fontSize:12.5,color:'rgba(255,255,255,.7)'}}>{s.label}</span>
+        <span style={{fontSize:12.5,fontWeight:700}}>{s.valor.toFixed(1)}kg</span>
+        <span style={{fontSize:11,color:'rgba(255,255,255,.4)',width:38,textAlign:'right' as const}}>{Math.round(s.valor/total*100)}%</span>
+      </div>))}
+    </div>
+  </div>)
+}
+function LinhaEvolucao({pontos,cor}:{pontos:{iso:string,valor:number}[],cor:string}){
+  if(pontos.length===0)return <div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'30px 0',textAlign:'center' as const}}>Nenhum registro no período selecionado.</div>
+  if(pontos.length===1)return(<div style={{padding:'20px 0'}}><div style={{fontSize:24,fontWeight:800}}>{pontos[0].valor}kg</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>Único registro no período · {new Date(pontos[0].iso+'T12:00:00').toLocaleDateString('pt-BR')}</div></div>)
+  const vals=pontos.map(p=>p.valor)
+  const mn=Math.min(...vals),mx=Math.max(...vals)
+  const range=mx-mn||1
+  const W=600,H=150,pad=8
+  const xy=pontos.map((p,i)=>{const x=pad+(i/(pontos.length-1))*(W-pad*2);const y=H-pad-((p.valor-mn)/range)*(H-pad*2);return [x,y]})
+  return(<div>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:140,display:'block'}} preserveAspectRatio="none">
+      <polyline points={xy.map(([x,y])=>`${x},${y}`).join(' ')} fill="none" stroke={cor} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round"/>
+      {xy.map(([x,y],i)=>(<circle key={i} cx={x} cy={y} r={i===xy.length-1?4:2} fill={cor}/>))}
+    </svg>
+    <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)',marginTop:6}}>
+      <span>{new Date(pontos[0].iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>
+      <span>{new Date(pontos[pontos.length-1].iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>
+    </div>
+  </div>)
+}
+function IndicadorCard({label,valor,delta,badge,sub}:{label:string,valor:string|number,delta?:{texto:string,cor:string}|null,badge?:{label:string,cor:string},sub?:string}){
+  return(<div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14,minWidth:0}}>
+    <div style={{fontSize:19,fontWeight:800,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{valor}</div>
+    <div style={{fontSize:11.5,color:'rgba(255,255,255,.4)',marginTop:2}}>{label}</div>
+    {badge&&<span style={{display:'inline-block',fontSize:10,fontWeight:700,color:badge.cor,background:`${badge.cor}22`,padding:'2px 7px',borderRadius:20,marginTop:4}}>{badge.label}</span>}
+    {delta&&<div style={{fontSize:10.5,color:delta.cor,marginTop:3}}>{delta.texto}</div>}
+    {sub&&<div style={{fontSize:10.5,color:'rgba(255,255,255,.35)',marginTop:3}}>{sub}</div>}
+  </div>)
+}
+const acaoBtnStyle:React.CSSProperties={background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'10px 6px',fontSize:11.5,fontWeight:600,cursor:'pointer',textAlign:'center' as const}
+function irParaRegistro(pessoa:string){document.getElementById(`card-registrar-${pessoa}`)?.scrollIntoView({behavior:'smooth',block:'center'})}
 function Saude(){
   type SReg={data:string,peso:number,imc:number,gordura:number,humor:number,energia:number,intestino:string,sint:string,sono?:number}
   type MReg={data:string,cintura:number,quadril:number,peito:number,coxaE:number,coxaD:number,bracE:number,bracD:number,abdSup:number,abdInf:number}
@@ -1663,33 +1743,139 @@ function Saude(){
   const [energiaF,setEnergiaF]=React.useState('')
   const [intestinoF,setIntestinoF]=React.useState('')
   const [sintF,setSintF]=React.useState('')
+  const [sonoF,setSonoF]=React.useState('')
   const [medD,setMedD]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_denise')||'null');return v||[{data:'04/06',pescoco:0,ombro:37,peito:91,cintura:73,bracE:25,bracD:25.5,antebracoE:19.5,antebracoD:19,abdSup:78,abdInf:81,coxaE:48,coxaD:49,panturE:31,panturD:33,quadril:91.5}]}catch{return []}})
   const [medF,setMedF]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_flavio')||'null');return v||[{data:'29/07',pescoco:41,ombro:42,peito:99,cintura:100,bracE:33,bracD:33,antebracoE:28,antebracoD:29,abdSup:96,abdInf:103,coxaE:56,coxaD:55,panturE:42,panturD:42,quadril:108}]}catch{return []}})
   const [novaMedD,setNovaMedD]=React.useState({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
   const [novaMedF,setNovaMedF]=React.useState({pescoco:'',ombro:'',peito:'',cintura:'',bracE:'',bracD:'',antebracoE:'',antebracoD:'',abdSup:'',abdInf:'',coxaE:'',coxaD:'',panturE:'',panturD:'',quadril:''})
   const [savedMedD,setSavedMedD]=React.useState(false)
   const [savedMedF,setSavedMedF]=React.useState(false)
+  const [aguaDenise,setAguaDenise]=React.useState(lerAguaHoje)
+  function addAguaDenise(ml:number){const n=Math.min(aguaDenise+ml,6000);setAguaDenise(n);salvarAguaHoje(n)}
+  const [aguaFlavio,setAguaFlavio]=React.useState<number>(()=>Number(lerLogMarcador('dos_agua_log_flavio')[isoBR(new Date())]||0))
+  function addAguaFlavio(ml:number){
+    const n=Math.min(aguaFlavio+ml,6000);setAguaFlavio(n)
+    const log=lerLogMarcador('dos_agua_log_flavio');log[isoBR(new Date())]=String(n);localStorage.setItem('dos_agua_log_flavio',JSON.stringify(log))
+  }
+  const [skincareLog,setSkincareLog]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_skincare'))
+  const [skincareLogF,setSkincareLogF]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_skincare_flavio'))
+  const [probioticosLog,setProbioticosLog]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_probioticos'))
+  const [probioticosLogF,setProbioticosLogF]=React.useState<Record<string,string>>(()=>lerLogMarcador('dos_probioticos_flavio'))
+  const [gorduraIn,setGorduraIn]=React.useState('')
+  const [gorduraInF,setGorduraInF]=React.useState('')
+  const [periodoPeso,setPeriodoPeso]=React.useState<'7'|'30'|'90'|'365'>('30')
+
+  const [tzSchedules,setTzSchedules]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
+  const [tzBalance,setTzBalance]=React.useState(0)
+  const [tzApplications,setTzApplications]=React.useState<any[]>([])
+  const [tzLoading,setTzLoading]=React.useState(true)
+  const [tzMsg,setTzMsg]=React.useState('')
+  const [tzMostrarGestao,setTzMostrarGestao]=React.useState<null|'aplicar'|'estoque'|'ajuste'|'protocolo'|'historico'>(null)
+  const [tzDose,setTzDose]=React.useState('')
+  const [tzData,setTzData]=React.useState(()=>isoBR(new Date()))
+  const [tzEstoqueQtd,setTzEstoqueQtd]=React.useState('')
+  const [tzEstoqueObs,setTzEstoqueObs]=React.useState('')
+  const [tzAjusteQtd,setTzAjusteQtd]=React.useState('')
+  const [tzAjusteMotivo,setTzAjusteMotivo]=React.useState('')
+  const [tzProtocoloDose,setTzProtocoloDose]=React.useState('')
+  const [tzProtocoloIntervalo,setTzProtocoloIntervalo]=React.useState('')
+
+  async function tzLoad(){
+    setTzLoading(true)
+    const [{data:sched},{data:bal},{data:apps}]=await Promise.all([
+      supabase.from('tirzepatida_schedule').select('*'),
+      supabase.from('tirzepatida_stock_balance').select('*').maybeSingle(),
+      supabase.from('tirzepatida_applications').select('*').order('applied_at',{ascending:false}),
+    ])
+    const map:Record<string,any>={}
+    ;(sched||[]).forEach((row:any)=>{map[row.person]={planned_dose_mg:Number(row.planned_dose_mg),interval_days:row.interval_days,next_application_date:row.next_application_date}})
+    setTzSchedules(map);setTzBalance(Number(bal?.current_balance_mg??0));setTzApplications(apps||[]);setTzLoading(false)
+  }
+  React.useEffect(()=>{tzLoad()},[])
+
+  function tzCalcularProxima(pessoa:string,intervaloDias:number){
+    const appsPessoa=tzApplications.filter((a:any)=>a.person===pessoa&&a.counted_in_stock).sort((a:any,b:any)=>b.applied_at.localeCompare(a.applied_at))
+    if(appsPessoa.length===0)return null
+    const ultima=new Date(appsPessoa[0].applied_at);ultima.setDate(ultima.getDate()+intervaloDias)
+    return isoBR(ultima)
+  }
+  async function tzRegistrarAplicacao(pessoa:'denise'|'flavio'){
+    const d=parseFloat(tzDose.replace(',','.'))
+    if(!d||d<=0){setTzMsg('❌ Dose inválida.');return}
+    if(d>tzBalance){setTzMsg('❌ Estoque insuficiente.');return}
+    const duplicada=tzApplications.some((a:any)=>a.person===pessoa&&a.applied_at?.slice(0,10)===tzData&&Number(a.dose_mg)===d)
+    if(duplicada&&!window.confirm('Já existe uma aplicação igual (mesma pessoa, data e dose). Registrar mesmo assim?'))return
+    try{
+      const appliedAt=new Date(tzData+'T'+new Date().toTimeString().slice(0,8)).toISOString()
+      const {error}=await supabase.rpc('tirze_apply_dose',{p_person:pessoa,p_applied_at:appliedAt,p_dose_mg:d})
+      if(error)throw error
+      setTzMsg('✓ Aplicação registrada.');setTzMostrarGestao(null);setTzDose('');await tzLoad()
+    }catch(e:any){setTzMsg('❌ '+(e?.message||String(e)))}
+  }
+  async function tzEstornar(app:any){
+    if(!window.confirm('Estornar esta aplicação? A dose volta para o estoque.'))return
+    if(app.counted_in_stock)await supabase.rpc('tirze_register_movement',{p_type:'correcao',p_amount_mg:Number(app.dose_mg),p_person:app.person,p_notes:'Estorno de aplicação'})
+    await supabase.from('tirzepatida_applications').delete().eq('id',app.id)
+    setTzMsg('✓ Aplicação estornada e devolvida ao estoque.');await tzLoad()
+  }
+  async function tzAdicionarEstoque(){
+    const q=parseFloat(tzEstoqueQtd.replace(',','.'))
+    if(!q||q<=0){setTzMsg('❌ Quantidade inválida.');return}
+    try{
+      const {error}=await supabase.rpc('tirze_register_movement',{p_type:'entrada',p_amount_mg:q,p_notes:tzEstoqueObs||'Entrada de estoque'})
+      if(error)throw error
+      setTzMsg(`✓ +${q}mg adicionados ao estoque.`);setTzEstoqueQtd('');setTzEstoqueObs('');setTzMostrarGestao(null);await tzLoad()
+    }catch(e:any){setTzMsg('❌ '+(e?.message||String(e)))}
+  }
+  async function tzAjustarEstoque(){
+    const q=parseFloat(tzAjusteQtd.replace(',','.'))
+    if(!q||!tzAjusteMotivo.trim()){setTzMsg('❌ Informe a quantidade (pode ser negativa) e o motivo do ajuste.');return}
+    try{
+      const {error}=await supabase.rpc('tirze_register_movement',{p_type:'correcao',p_amount_mg:q,p_notes:tzAjusteMotivo})
+      if(error)throw error
+      setTzMsg('✓ Ajuste de estoque registrado.');setTzAjusteQtd('');setTzAjusteMotivo('');setTzMostrarGestao(null);await tzLoad()
+    }catch(e:any){setTzMsg('❌ '+(e?.message||String(e)))}
+  }
+  async function tzSalvarProtocolo(pessoa:'denise'|'flavio'){
+    const dose=parseFloat(tzProtocoloDose.replace(',','.'))
+    const intervalo=Number(tzProtocoloIntervalo)
+    if(!dose||!intervalo){setTzMsg('❌ Informe dose e intervalo válidos.');return}
+    try{
+      const prox=tzCalcularProxima(pessoa,intervalo)
+      const {error}=await supabase.from('tirzepatida_schedule').update({planned_dose_mg:dose,interval_days:intervalo,...(prox?{next_application_date:prox}:{})}).eq('person',pessoa)
+      if(error)throw error
+      setTzMsg('✓ Protocolo atualizado. Aplicações antigas continuam com a dose registrada na época.');setTzMostrarGestao(null);await tzLoad()
+    }catch(e:any){setTzMsg('❌ '+(e?.message||String(e)))}
+  }
+  const tzAutonomia=(()=>{
+    const dDen=tzSchedules.denise?.planned_dose_mg||0,dFla=tzSchedules.flavio?.planned_dose_mg||0
+    const iDen=tzSchedules.denise?.interval_days||1,iFla=tzSchedules.flavio?.interval_days||1
+    const mgDay=(dDen&&iDen?dDen/iDen:0)+(dFla&&iFla?dFla/iFla:0)
+    return mgDay>0?Math.floor(tzBalance/mgDay):null
+  })()
+  function tzStatusProxima(iso:string|null|undefined){
+    if(!iso)return {texto:'Sem próxima aplicação definida',cor:'rgba(255,255,255,.4)'}
+    const hoje=isoBR(new Date())
+    const dif=Math.round((new Date(iso+'T12:00:00').getTime()-new Date(hoje+'T12:00:00').getTime())/86400000)
+    if(dif<0)return {texto:`Atrasada ${Math.abs(dif)} dia${Math.abs(dif)>1?'s':''}`,cor:C.danger}
+    if(dif===0)return {texto:'Hoje',cor:C.warn}
+    if(dif===1)return {texto:'Amanhã',cor:C.acc2}
+    return {texto:`Em ${dif} dias`,cor:'rgba(255,255,255,.6)'}
+  }
   const displayList=[...[...OKOK].reverse(),...extras]
-  const atual=displayList[0]
-  const pesoAtual=atual.peso
-  const pesoInicial=OKOK[0].peso
-  const perdeu=Math.round((pesoInicial-pesoAtual)*100)/100
-  const gordAtual=atual.gordura
-  const ultimaMedida=MEDIDAS[MEDIDAS.length-1]
+  const pesoAtual=displayList[0].peso
   const pesoAtualF=extrasF[0].peso
-  const pesoInicialF=extrasF[extrasF.length-1].peso
-  const perdeuF=Math.round((pesoInicialF-pesoAtualF)*100)/100
   function salvar(){
-    if(!peso&&!humor&&!intestino)return
-    const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(peso)||0,imc:Number((Number(peso)/(1.63**2)).toFixed(1))||0,gordura:0,humor:Number(humor)||0,energia:Number(energia)||0,intestino,sint,sono:Number(sono)||0}
+    if(!peso&&!humor&&!intestino&&!gorduraIn)return
+    const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(peso)||0,imc:peso?Number((Number(peso)/(1.63**2)).toFixed(1)):0,gordura:Number(gorduraIn)||0,humor:Number(humor)||0,energia:Number(energia)||0,intestino,sint,sono:Number(sono)||0}
     const n=[reg,...extras];setExtras(n);localStorage.setItem('dos_saude_extra',JSON.stringify(n))
-    setSaved(true);setPeso('');setHumor('');setEnergia('');setIntestino('');setSint('');setSono('')
+    setSaved(true);setPeso('');setHumor('');setEnergia('');setIntestino('');setSint('');setSono('');setGorduraIn('')
   }
   function salvarFlavio(){
-    if(!pesoF)return
-    const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(pesoF)||0,imc:0,gordura:0,humor:Number(humorF)||0,energia:Number(energiaF)||0,intestino:intestinoF,sint:sintF}
+    if(!pesoF&&!gorduraInF)return
+    const reg:SReg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),peso:Number(pesoF)||0,imc:0,gordura:Number(gorduraInF)||0,humor:Number(humorF)||0,energia:Number(energiaF)||0,intestino:intestinoF,sint:sintF,sono:Number(sonoF)||0}
     const n=[reg,...extrasF];setExtrasF(n);localStorage.setItem('dos_saude_extra_flavio',JSON.stringify(n))
-    setSavedF(true);setPesoF('');setHumorF('');setEnergiaF('');setIntestinoF('');setSintF('')
+    setSavedF(true);setPesoF('');setHumorF('');setEnergiaF('');setIntestinoF('');setSintF('');setGorduraInF('');setSonoF('')
   }
   function addMedD(){
     const has=Object.values(novaMedD).some(v=>v!=='')
@@ -1742,15 +1928,220 @@ function Saude(){
     const n={...tamanhos,[kid]:{...(tamanhos[kid]||{}),[campo]:valor}}
     setTamanhos(n);localStorage.setItem('dos_tamanhos',JSON.stringify(n))
   }
-  const chartPeso=OKOK
-  const minP=Math.min(...chartPeso.map(d=>d.peso))-0.5
-  const maxP=Math.max(...chartPeso.map(d=>d.peso))+0.5
   const membros=[
     {id:'denise',nome:'Denise',label:'Você',cor:C.acc2},
     {id:'flavio',nome:'Flávio',label:'Flávio',cor:C.water},
     {id:'domi',nome:'Domi',label:'Domi',cor:C.pink},
     {id:'derick',nome:'Derick',label:'Derick',cor:C.ok},
   ]
+
+  function renderTirzepatidaCard(pessoa:'denise'|'flavio',cor:string){
+    const sched=tzSchedules[pessoa]
+    const status=tzStatusProxima(sched?.next_application_date)
+    const historico=tzApplications.filter((a:any)=>a.person===pessoa)
+    return(<Card title="💉 Tirzepatida" action={<button onClick={()=>setTzMostrarGestao(g=>g?null:'aplicar')} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:8,padding:'6px 12px',fontSize:11.5,cursor:'pointer'}}>{tzMostrarGestao?'Fechar':'Gerenciar'}</button>}>
+      {tzLoading?<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Carregando…</div>:!sched?<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Protocolo ainda não cadastrado para {pessoa==='denise'?'você':'Flávio'}.</div>:<>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+          <div><div style={{fontSize:16,fontWeight:800}}>{sched.planned_dose_mg} mg</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)'}}>Dose atual</div></div>
+          <div><div style={{fontSize:16,fontWeight:800,color:status.cor}}>{status.texto}</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)'}}>Próxima aplicação{sched.next_application_date?` · ${new Date(sched.next_application_date+'T12:00:00').toLocaleDateString('pt-BR')}`:''}</div></div>
+          <div><div style={{fontSize:16,fontWeight:800}}>{tzBalance} mg</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)'}}>Estoque compartilhado</div></div>
+          <div><div style={{fontSize:16,fontWeight:800}}>{tzAutonomia!=null?`~${tzAutonomia} dias`:'—'}</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)'}}>Autonomia estimada</div></div>
+        </div>
+        {historico[0]&&<div style={{fontSize:11,color:'rgba(255,255,255,.4)',marginBottom:6}}>Última aplicação: {new Date(historico[0].applied_at).toLocaleDateString('pt-BR')} · {Number(historico[0].dose_mg)}mg</div>}
+      </>}
+      {tzMsg&&<div style={{fontSize:12,color:tzMsg.startsWith('✓')?C.ok:C.danger,marginBottom:8}}>{tzMsg}</div>}
+      {tzMostrarGestao&&<div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.line}`}}>
+        <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap' as const}}>
+          {([['aplicar','Registrar aplicação'],['protocolo','Editar protocolo'],['estoque','Adicionar estoque'],['ajuste','Ajustar estoque'],['historico','Histórico']] as [any,string][]).map(([v,l])=>(
+            <button key={v} onClick={()=>setTzMostrarGestao(v)} style={{background:tzMostrarGestao===v?cor:C.s2,border:'none',color:tzMostrarGestao===v?'#fff':'rgba(255,255,255,.6)',borderRadius:20,padding:'5px 10px',fontSize:11,cursor:'pointer'}}>{l}</button>
+          ))}
+        </div>
+        {tzMostrarGestao==='aplicar'&&<div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Data</label><input type="date" value={tzData} onChange={e=>setTzData(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12,colorScheme:'dark' as const}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Dose (mg)</label><input type="number" step="0.5" value={tzDose||String(sched?.planned_dose_mg||'')} onChange={e=>setTzDose(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+          </div>
+          <button onClick={()=>tzRegistrarAplicacao(pessoa)} style={{width:'100%',background:`linear-gradient(135deg,${cor},#6d28d9)`,color:'#fff',border:'none',borderRadius:9,padding:'9px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>Registrar aplicação</button>
+        </div>}
+        {tzMostrarGestao==='protocolo'&&<div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Nova dose (mg)</label><input type="number" step="0.5" value={tzProtocoloDose} onChange={e=>setTzProtocoloDose(e.target.value)} placeholder={String(sched?.planned_dose_mg||'')} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Intervalo (dias)</label><input type="number" value={tzProtocoloIntervalo} onChange={e=>setTzProtocoloIntervalo(e.target.value)} placeholder={String(sched?.interval_days||'')} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+          </div>
+          <p style={{fontSize:10.5,color:'rgba(255,255,255,.35)',marginBottom:8}}>Aplicações antigas continuam com a dose que estava valendo na época.</p>
+          <button onClick={()=>tzSalvarProtocolo(pessoa)} style={{width:'100%',background:`linear-gradient(135deg,${cor},#6d28d9)`,color:'#fff',border:'none',borderRadius:9,padding:'9px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>Salvar protocolo</button>
+        </div>}
+        {tzMostrarGestao==='estoque'&&<div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Quantidade recebida (mg)</label><input type="number" value={tzEstoqueQtd} onChange={e=>setTzEstoqueQtd(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Observação (opcional)</label><input value={tzEstoqueObs} onChange={e=>setTzEstoqueObs(e.target.value)} placeholder="Ex: lote/farmácia" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+          </div>
+          <button onClick={tzAdicionarEstoque} style={{width:'100%',background:`linear-gradient(135deg,${C.ok},#15803d)`,color:'#fff',border:'none',borderRadius:9,padding:'9px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>+ Adicionar ao estoque</button>
+        </div>}
+        {tzMostrarGestao==='ajuste'&&<div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Ajuste (mg, use - pra reduzir)</label><input type="number" value={tzAjusteQtd} onChange={e=>setTzAjusteQtd(e.target.value)} placeholder="Ex: -2,5" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Motivo</label><input value={tzAjusteMotivo} onChange={e=>setTzAjusteMotivo(e.target.value)} placeholder="Ex: divergência na contagem" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'7px 8px',color:'#fff',fontSize:12}}/></div>
+          </div>
+          <button onClick={tzAjustarEstoque} style={{width:'100%',background:`linear-gradient(135deg,${C.warn},#b45309)`,color:'#fff',border:'none',borderRadius:9,padding:'9px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>Registrar ajuste</button>
+        </div>}
+        {tzMostrarGestao==='historico'&&<div style={{maxHeight:220,overflowY:'auto' as const}}>
+          {historico.length===0&&<div style={{fontSize:12,color:'rgba(255,255,255,.3)'}}>Nenhuma aplicação registrada ainda.</div>}
+          {historico.map((a:any)=>(<div key={a.id} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:`1px solid ${C.line}`,fontSize:11.5,color:'rgba(255,255,255,.6)'}}>
+            <span style={{width:70}}>{new Date(a.applied_at).toLocaleDateString('pt-BR')}</span>
+            <span style={{flex:1}}>{Number(a.dose_mg)}mg</span>
+            <span style={{background:a.counted_in_stock?'rgba(52,211,153,.15)':C.s3,color:a.counted_in_stock?C.ok:'rgba(255,255,255,.4)',padding:'2px 7px',borderRadius:20,fontSize:10.5}}>{a.counted_in_stock?'✓':'histórico'}</span>
+            {a.counted_in_stock&&<button onClick={()=>tzEstornar(a)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'3px 8px',fontSize:10.5,cursor:'pointer'}}>Estornar</button>}
+          </div>))}
+        </div>}
+      </div>}
+    </Card>)
+  }
+
+  function renderAdulto(p:{pessoa:'denise'|'flavio',nome:string,cor:string,variant:'imc'|'medidas'}){
+    const lista=p.pessoa==='denise'?displayList:extrasF
+    const pesoAt=p.pessoa==='denise'?pesoAtual:pesoAtualF
+    const aguaAt=p.pessoa==='denise'?aguaDenise:aguaFlavio
+    const addAgua=p.pessoa==='denise'?addAguaDenise:addAguaFlavio
+    const skinLog=p.pessoa==='denise'?skincareLog:skincareLogF
+    const setSkinLog=p.pessoa==='denise'?setSkincareLog:setSkincareLogF
+    const skinChave=p.pessoa==='denise'?'dos_skincare':'dos_skincare_flavio'
+    const probLog=p.pessoa==='denise'?probioticosLog:probioticosLogF
+    const setProbLog=p.pessoa==='denise'?setProbioticosLog:setProbioticosLogF
+    const probChave=p.pessoa==='denise'?'dos_probioticos':'dos_probioticos_flavio'
+    const consultasP=consuls[p.pessoa]||[]
+    const medidasP=p.pessoa==='denise'?medD:medF
+
+    const hoje=isoBR(new Date())
+    const anoAtual=new Date().getFullYear()
+    const registroHojeIdx=lista.findIndex((r:any)=>paraDataAproxDDMM(r.data,anoAtual)===hoje)
+    const registroHoje=registroHojeIdx>=0?lista[registroHojeIdx]:null
+    const anterior=lista[registroHojeIdx>=0?registroHojeIdx+1:1]
+
+    const gorduraAtualReg=lista.find((r:any)=>r.gordura>0)
+    const gorduraAnteriorReg=gorduraAtualReg?lista.slice(lista.indexOf(gorduraAtualReg)+1).find((r:any)=>r.gordura>0):null
+    const massaMagraAtual=gorduraAtualReg?Math.round(pesoAt*(1-gorduraAtualReg.gordura/100)*100)/100:null
+    const massaMagraAnt=(gorduraAnteriorReg&&anterior)?Math.round(anterior.peso*(1-gorduraAnteriorReg.gordura/100)*100)/100:null
+
+    const imcAtual=lista[0]?.imc||0
+    const imcClass=classificarIMC(imcAtual)
+    const metaAguaP=Number(localStorage.getItem('dos_meta_agua_ml')||2500)
+    const pctAgua=Math.min(100,Math.round(aguaAt/metaAguaP*100))
+
+    const serieCompleta:{iso:string,valor:number}[]=[...lista].map((r:any)=>({iso:paraDataAproxDDMM(r.data,anoAtual),valor:r.peso})).filter((x:any):x is {iso:string,valor:number}=>!!x.iso&&!!x.valor).sort((a,b)=>a.iso.localeCompare(b.iso))
+    const corteDias=Number(periodoPeso)
+    const limiteIso=isoBR(new Date(Date.now()-corteDias*86400000))
+    const serieFiltrada=serieCompleta.filter((x:any)=>x.iso>=limiteIso)
+
+    const itensHoje:[string,string,string][]=[]
+    if(registroHoje?.peso)itensHoje.push(['⚖️','Peso',`${registroHoje.peso} kg`])
+    if(aguaAt>0)itensHoje.push(['💧','Água',`${aguaAt} ml`])
+    if(registroHoje?.sono)itensHoje.push(['🌙','Sono',`${registroHoje.sono}h`])
+    if(registroHoje?.energia)itensHoje.push(['⚡','Energia',`${registroHoje.energia} / 10`])
+    if(registroHoje?.humor)itensHoje.push(['😊','Humor',`${registroHoje.humor} / 10`])
+    if(registroHoje?.intestino)itensHoje.push(['💚','Intestino',registroHoje.intestino])
+    if(skinLog[hoje])itensHoje.push(['🧴','Skin care',`✓ Concluído · ${skinLog[hoje]}`])
+    if(probLog[hoje])itensHoje.push(['💊','Probióticos',`✓ Tomado · ${probLog[hoje]}`])
+
+    const proximasConsultas=consultasP.filter((c:any)=>c.data&&c.data>=hoje).map((c:any)=>({data:c.data,titulo:c.tipo,sub:c.obs||''}))
+    const proximaTz=tzSchedules[p.pessoa]?.next_application_date?[{data:tzSchedules[p.pessoa].next_application_date as string,titulo:'💉 Aplicação de Tirzepatida',sub:`${tzSchedules[p.pessoa].planned_dose_mg}mg`}]:[]
+    const proximos=[...proximasConsultas,...proximaTz].sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5)
+
+    const seteAtras=isoBR(new Date(Date.now()-7*86400000))
+    const catorzeAtras=isoBR(new Date(Date.now()-14*86400000))
+    const semAtual=serieCompleta.filter(x=>x.iso>=seteAtras)
+    const semAnt=serieCompleta.filter(x=>x.iso>=catorzeAtras&&x.iso<seteAtras)
+    const mediaAtual=semAtual.length?Math.round(semAtual.reduce((a,x)=>a+x.valor,0)/semAtual.length*100)/100:null
+    const mediaAnt=semAnt.length?Math.round(semAnt.reduce((a,x)=>a+x.valor,0)/semAnt.length*100)/100:null
+    const treinosSemana=p.pessoa==='denise'?(()=>{try{return (JSON.parse(localStorage.getItem('dos_treinos')||'[]') as any[]).filter((t:any)=>t.data>=seteAtras).length}catch{return 0}})():null
+    const deltaMedia=deltaInfo(mediaAtual,mediaAnt,2,'kg')
+
+    return(<>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
+        <IndicadorCard label="Peso atual" valor={`${pesoAt} kg`} delta={deltaInfo(pesoAt,anterior?.peso,1,'kg')}/>
+        {gorduraAtualReg&&<IndicadorCard label="Gordura corporal" valor={`${gorduraAtualReg.gordura}%`} delta={deltaInfo(gorduraAtualReg.gordura,gorduraAnteriorReg?.gordura,1,'%')}/>}
+        {p.variant==='imc'?(<>
+          {massaMagraAtual!=null&&<IndicadorCard label="Massa magra" valor={`${massaMagraAtual} kg`} delta={deltaInfo(massaMagraAtual,massaMagraAnt,1,'kg')}/>}
+          <IndicadorCard label="IMC" valor={imcAtual||'—'} badge={imcAtual?imcClass:undefined}/>
+        </>):(<>
+          {medidasP[0]&&<IndicadorCard label="Cintura" valor={`${medidasP[0].cintura} cm`} delta={deltaInfo(medidasP[0].cintura,medidasP[1]?.cintura,1,'cm')}/>}
+          {medidasP[0]&&<IndicadorCard label="Quadril" valor={`${medidasP[0].quadril} cm`} delta={deltaInfo(medidasP[0].quadril,medidasP[1]?.quadril,1,'cm')}/>}
+          {medidasP[0]&&<IndicadorCard label="Peito" valor={`${medidasP[0].peito} cm`} delta={deltaInfo(medidasP[0].peito,medidasP[1]?.peito,1,'cm')}/>}
+        </>)}
+        <IndicadorCard label="Água hoje" valor={`${(aguaAt/1000).toFixed(2).replace('.',',')} / ${(metaAguaP/1000).toFixed(1).replace('.',',')} L`} sub={`${pctAgua}% da meta`}/>
+        <IndicadorCard label="Sono hoje" valor={registroHoje?.sono?`${registroHoje.sono}h`:'—'}/>
+        <IndicadorCard label="Energia hoje" valor={registroHoje?.energia?`${registroHoje.energia} / 10`:'—'}/>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16}}>
+        <div>
+          <Card title="Evolução do peso" action={<div style={{display:'flex',gap:6}}>{(['7','30','90','365'] as const).map(v=>(<button key={v} onClick={()=>setPeriodoPeso(v)} style={{background:periodoPeso===v?p.cor:C.s2,border:'none',color:periodoPeso===v?'#fff':'rgba(255,255,255,.5)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:600,cursor:'pointer'}}>{v==='365'?'1 ano':`${v}d`}</button>))}</div>}>
+            <LinhaEvolucao pontos={serieFiltrada} cor={p.cor}/>
+          </Card>
+          <div style={{marginTop:16}}>
+            <Card title="Composição corporal">
+              {massaMagraAtual!=null&&gorduraAtualReg?(
+                <DonutComposicao centroValor={`${pesoAt} kg`} centroLabel="Peso atual" segmentos={[
+                  {valor:massaMagraAtual,cor:p.cor,label:'Massa magra'},
+                  {valor:Math.round(pesoAt*gorduraAtualReg.gordura/100*100)/100,cor:C.pink,label:'Gordura'},
+                ]}/>
+              ):<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0'}}>Registre a gordura corporal em "Registrar hoje" pra ver a composição.</div>}
+            </Card>
+          </div>
+          <div style={{marginTop:16}}>
+            <Card title="Hábitos em dia">
+              <div style={{fontSize:22,fontWeight:800}}>{itensHoje.length} / 8</div>
+              <div style={{height:8,borderRadius:4,background:C.s3,overflow:'hidden',margin:'8px 0'}}><div style={{height:'100%',width:`${itensHoje.length/8*100}%`,borderRadius:4,background:p.cor}}/></div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>{itensHoje.length===8?'Todos os registros de hoje em dia! 🎉':itensHoje.length>0?'Continue registrando ao longo do dia.':'Nada registrado ainda hoje.'}</div>
+            </Card>
+          </div>
+        </div>
+        <div>
+          <Card title="Registros de hoje">
+            {itensHoje.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nada registrado hoje ainda.</div>}
+            {itensHoje.map(([icone,nome,valor])=>(<Lrow key={nome} icon={icone} name={nome} val={valor}/>))}
+          </Card>
+          <div style={{marginTop:16}}>
+            <Card title="Ações rápidas">
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>⚖️ Registrar peso</button>
+                <button onClick={()=>addAgua(250)} style={acaoBtnStyle}>💧 Registrar água</button>
+                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>🌙 Registrar sono</button>
+                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>⚡ Registrar energia</button>
+                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>😊 Registrar humor</button>
+                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>💚 Registrar intestino</button>
+                <button onClick={()=>marcarHoje(skinChave,setSkinLog)} style={acaoBtnStyle}>🧴 Skin care{skinLog[hoje]?' ✓':''}</button>
+                <button onClick={()=>marcarHoje(probChave,setProbLog)} style={acaoBtnStyle}>💊 Probióticos{probLog[hoje]?' ✓':''}</button>
+              </div>
+              <button onClick={()=>irParaRegistro(p.pessoa)} style={{...acaoBtnStyle,width:'100%',marginTop:8}}>+ Outro registro</button>
+            </Card>
+          </div>
+          <div style={{marginTop:16}}>{renderTirzepatidaCard(p.pessoa,p.cor)}</div>
+          <div style={{marginTop:16}}>
+            <Card title="Próximos itens">
+              {proximos.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum item próximo registrado.</div>}
+              {proximos.map((it,i)=>(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+                <div><div style={{fontSize:12.5,fontWeight:700}}>{it.titulo}</div>{it.sub&&<div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{it.sub}</div>}</div>
+                <span style={{fontSize:11,color:p.cor}}>{new Date(it.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</span>
+              </div>))}
+              <NavLink to="/agenda" style={{display:'block',textAlign:'center' as const,fontSize:12,color:p.cor,textDecoration:'none',marginTop:10}}>Ver agenda completa</NavLink>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      <div style={{marginTop:16}}>
+        <Card title="Resumo semanal">
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:14}}>
+            <div><div style={{fontSize:18,fontWeight:800}}>{mediaAtual??'—'}{mediaAtual!=null?' kg':''}</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>Peso médio</div>{deltaMedia&&<div style={{fontSize:10.5,color:deltaMedia.cor}}>{deltaMedia.texto} vs semana anterior</div>}</div>
+            {p.pessoa==='denise'&&treinosSemana!=null&&<div><div style={{fontSize:18,fontWeight:800}}>{treinosSemana}</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>Treinos</div></div>}
+            <div><div style={{fontSize:18,fontWeight:800}}>{itensHoje.length}/8</div><div style={{fontSize:11.5,color:'rgba(255,255,255,.4)'}}>Hábitos concluídos hoje</div></div>
+          </div>
+        </Card>
+      </div>
+    </>)
+  }
+
   return(<div style={{padding:'24px 28px'}}>
     <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Saúde da Família</h1>
     <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Acompanhamento individual · registros · consultas</p>
@@ -1762,31 +2153,8 @@ function Saude(){
     </div>
 
     {aba==='denise'&&<div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:16}}>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.ok}}>{pesoAtual} kg</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Peso atual</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.ok}}>-{perdeu} kg</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Perdidos</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800}}>{gordAtual}%</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Gordura</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.acc2}}>{ultimaMedida.cintura} cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Cintura</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.acc2}}>{ultimaMedida.quadril} cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Quadril</div></div>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16}}>
-        <Card title="Evolução do peso — dez/25 a jul/26">
-          <div style={{height:140,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
-            {chartPeso.map((d,i)=>{
-              const barH=Math.max(Math.round(((d.peso-minP)/(maxP-minP))*135),3)
-              const isMin=d.peso===Math.min(...chartPeso.map(x=>x.peso))
-              const isMax=d.peso===Math.max(...chartPeso.map(x=>x.peso))
-              return(<div key={i} title={`${d.data}: ${d.peso}kg`} style={{flex:1,borderRadius:'2px 2px 1px 1px',background:isMin?`linear-gradient(180deg,${C.ok},#15803d)`:isMax?`linear-gradient(180deg,${C.danger},#991b1b)`:`linear-gradient(180deg,${C.acc2},#6d28d9)`,height:barH,alignSelf:'flex-end'}}/>)
-            })}
-          </div>
-          <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
-            <span>dez/25: 75,7kg</span><span>🟢 mín: 60,55kg</span><span>atual: {pesoAtual}kg</span>
-          </div>
-          <div style={{height:60,display:'flex',alignItems:'flex-end',gap:2,marginTop:12}}>
-            {OKOK.map((d,i)=>{if(!d.gordura)return null;const mn=31.3,mx=39.1,h=Math.max(Math.round(((d.gordura-mn)/(mx-mn))*55),3);return(<div key={i} title={`${d.data}: ${d.gordura}%`} style={{flex:1,borderRadius:'2px 2px 1px 1px',background:`linear-gradient(180deg,${C.pink},#9d174d)`,height:h,alignSelf:'flex-end'}}/>)})}
-          </div>
-          <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)',marginTop:4}}><span>Gordura: 39,1%</span><span>mín: 31,3%</span><span>atual: 33,4%</span></div>
-        </Card>
+      {renderAdulto({pessoa:'denise',nome:'Denise',cor:C.acc2,variant:'imc'})}
+      <div id="card-registrar-denise" style={{marginTop:16}}>
         <Card title="Registrar hoje">
           {saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Salvo!</div>}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
@@ -1795,6 +2163,7 @@ function Saude(){
             <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Energia (1–10)</label><input type="number" min="1" max="10" value={energia} onChange={e=>setEnergia(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
             <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Intestino</label><select value={intestino} onChange={e=>setIntestino(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}><option value="">—</option><option>Regular</option><option>Preso</option><option>Solto</option></select></div>
             <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Sono (horas)</label><input type="number" step="0.5" min="0" max="24" value={sono} onChange={e=>setSono(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Gordura corporal (%)</label><input type="number" step="0.1" value={gorduraIn} onChange={e=>setGorduraIn(e.target.value)} placeholder="Opcional" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
           </div>
           <input value={sint} onChange={e=>setSint(e.target.value)} placeholder="Sintomas" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
           <button onClick={salvar} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>✓ Salvar</button>
@@ -1818,17 +2187,19 @@ function Saude(){
         <button onClick={addMedD} style={{width:'100%',background:`linear-gradient(135deg,${C.acc2},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar medidas</button>
       </Card>
       <Card title="Evolucao da cintura - Denise">
+        {(()=>{const medHistCompleto=[...MEDIDAS,...[...medD].reverse()];return(<>
         <div style={{height:100,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
-          {[...medD].reverse().map((d,i)=>{
-            const vals=medD.map(x=>x.cintura)
+          {medHistCompleto.map((d,i)=>{
+            const vals=medHistCompleto.map(x=>x.cintura)
             const mn=Math.min(...vals)-1,mx=Math.max(...vals)+1
             const barH=Math.max(Math.round(((d.cintura-mn)/(mx-mn))*95),3)
             return(<div key={i} title={`${d.data}: ${d.cintura}cm`} style={{width:24,flexShrink:0,borderRadius:'2px 2px 1px 1px',background:`linear-gradient(180deg,${C.acc2},#0369a1)`,height:barH,alignSelf:'flex-end'}}/>)
           })}
         </div>
         <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
-          <span>{medD[medD.length-1].data}: {medD[medD.length-1].cintura}cm</span><span>atual: {medD[0].cintura}cm</span>
+          <span>{medHistCompleto[0].data}: {medHistCompleto[0].cintura}cm</span><span>atual: {medD[0].cintura}cm</span>
         </div>
+        </>)})()}
       </Card>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginTop:16}}>
         <Card title="Consultas — Denise">
@@ -1874,29 +2245,8 @@ function Saude(){
     </div>}
 
     {aba==='flavio'&&<div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12,marginBottom:16}}>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.water}}>{pesoAtualF} kg</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Peso atual</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:perdeuF>=0?C.ok:C.danger}}>{perdeuF>=0?'-':'+'}{Math.abs(perdeuF)} kg</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Variacao</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.acc2}}>100 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Cintura</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800,color:C.acc2}}>108 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Quadril</div></div>
-        <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800}}>99 cm</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>Peito</div></div>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16}}>
-        <Card title="Evolucao do peso - Flavio">
-          <div style={{height:140,display:'flex',alignItems:'flex-end',gap:2,marginBottom:8}}>
-            {[...extrasF].reverse().map((d,i)=>{
-              const vals=extrasF.map(x=>x.peso)
-              const mn=Math.min(...vals)-0.5,mx=Math.max(...vals)+0.5
-              const barH=Math.max(Math.round(((d.peso-mn)/(mx-mn))*135),3)
-              const isMin=d.peso===Math.min(...vals)
-              const isMax=d.peso===Math.max(...vals)
-              return(<div key={i} title={`${d.data}: ${d.peso}kg`} style={{width:28,flexShrink:0,borderRadius:'2px 2px 1px 1px',background:isMin?`linear-gradient(180deg,${C.ok},#15803d)`:isMax?`linear-gradient(180deg,${C.danger},#991b1b)`:`linear-gradient(180deg,${C.water},#0369a1)`,height:barH,alignSelf:'flex-end'}}/>)
-            })}
-          </div>
-          <div style={{display:'flex',justifyContent:'space-between' as const,fontSize:11,color:'rgba(255,255,255,.4)'}}>
-            <span>{extrasF[extrasF.length-1].data}: {pesoInicialF}kg</span><span>atual: {pesoAtualF}kg</span>
-          </div>
-        </Card>
+      {renderAdulto({pessoa:'flavio',nome:'Flávio',cor:C.water,variant:'medidas'})}
+      <div id="card-registrar-flavio" style={{marginTop:16}}>
         <Card title="Registrar hoje - Flavio">
           {savedF&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
@@ -1904,6 +2254,8 @@ function Saude(){
             <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Humor (1-10)</label><input type="number" min="1" max="10" value={humorF} onChange={e=>setHumorF(e.target.value)} placeholder="8" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
             <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Energia (1-10)</label><input type="number" min="1" max="10" value={energiaF} onChange={e=>setEnergiaF(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
             <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Intestino</label><select value={intestinoF} onChange={e=>setIntestinoF(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}><option value="">-</option><option>Regular</option><option>Preso</option><option>Solto</option></select></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Sono (horas)</label><input type="number" step="0.5" min="0" max="24" value={sonoF} onChange={e=>setSonoF(e.target.value)} placeholder="7" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Gordura corporal (%)</label><input type="number" step="0.1" value={gorduraInF} onChange={e=>setGorduraInF(e.target.value)} placeholder="Opcional" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
           </div>
           <input value={sintF} onChange={e=>setSintF(e.target.value)} placeholder="Sintomas" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
           <button onClick={salvarFlavio} style={{width:'100%',background:`linear-gradient(135deg,${C.water},#0369a1)`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar</button>
