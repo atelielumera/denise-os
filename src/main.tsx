@@ -1725,7 +1725,50 @@ function IndicadorCard({label,valor,delta,badge,sub}:{label:string,valor:string|
   </div>)
 }
 const acaoBtnStyle:React.CSSProperties={background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'10px 6px',fontSize:11.5,fontWeight:600,cursor:'pointer',textAlign:'center' as const}
-function irParaRegistro(pessoa:string){document.getElementById(`card-registrar-${pessoa}`)?.scrollIntoView({behavior:'smooth',block:'center'})}
+type SRegQuick={data:string,peso:number,imc:number,gordura:number,humor:number,energia:number,intestino:string,sint:string,sono?:number}
+function registrarCampoRapido(
+  pessoa:'denise'|'flavio',
+  campo:'peso'|'humor'|'energia'|'intestino'|'sono',
+  rotulo:string,
+  lista:SRegQuick[],
+  setLista:(n:SRegQuick[])=>void,
+){
+  const valor=window.prompt(rotulo)
+  if(valor===null||valor.trim()==='')return
+  const chave=pessoa==='denise'?'dos_saude_extra':'dos_saude_extra_flavio'
+  const hojeStr=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+  const idx=lista.findIndex(r=>r.data===hojeStr)
+  const base:SRegQuick=idx>=0?{...lista[idx]}:{data:hojeStr,peso:0,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:'',sono:0}
+  if(campo==='peso'){base.peso=Number(valor.replace(',','.'))||0;if(pessoa==='denise')base.imc=Number((base.peso/(1.63**2)).toFixed(1))}
+  if(campo==='humor')base.humor=Number(valor)||0
+  if(campo==='energia')base.energia=Number(valor)||0
+  if(campo==='intestino')base.intestino=valor
+  if(campo==='sono')base.sono=Number(valor.replace(',','.'))||0
+  const n=idx>=0?lista.map((r,i)=>i===idx?base:r):[base,...lista]
+  setLista(n);localStorage.setItem(chave,JSON.stringify(n))
+}
+function registrarVariosRapido(pessoa:'denise'|'flavio',lista:SRegQuick[],setLista:(n:SRegQuick[])=>void){
+  const chave=pessoa==='denise'?'dos_saude_extra':'dos_saude_extra_flavio'
+  const hojeStr=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+  const idx=lista.findIndex(r=>r.data===hojeStr)
+  const base:SRegQuick=idx>=0?{...lista[idx]}:{data:hojeStr,peso:0,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:'',sono:0}
+  const peso=window.prompt('Peso (kg)? Deixe em branco pra pular.',base.peso?String(base.peso):'')
+  if(peso&&peso.trim()){base.peso=Number(peso.replace(',','.'))||0;if(pessoa==='denise')base.imc=Number((base.peso/(1.63**2)).toFixed(1))}
+  const gordura=window.prompt('Gordura corporal (%)? Deixe em branco pra pular.',base.gordura?String(base.gordura):'')
+  if(gordura&&gordura.trim())base.gordura=Number(gordura.replace(',','.'))||0
+  const humor=window.prompt('Humor (1 a 10)? Deixe em branco pra pular.',base.humor?String(base.humor):'')
+  if(humor&&humor.trim())base.humor=Number(humor)||0
+  const energia=window.prompt('Energia (1 a 10)? Deixe em branco pra pular.',base.energia?String(base.energia):'')
+  if(energia&&energia.trim())base.energia=Number(energia)||0
+  const intestino=window.prompt('Intestino (Regular/Preso/Solto)? Deixe em branco pra pular.',base.intestino||'')
+  if(intestino&&intestino.trim())base.intestino=intestino
+  const sono=window.prompt('Sono (horas)? Deixe em branco pra pular.',base.sono?String(base.sono):'')
+  if(sono&&sono.trim())base.sono=Number(sono.replace(',','.'))||0
+  const sint=window.prompt('Sintomas (opcional)? Deixe em branco pra pular.',base.sint||'')
+  if(sint&&sint.trim())base.sint=sint
+  const n=idx>=0?lista.map((r,i)=>i===idx?base:r):[base,...lista]
+  setLista(n);localStorage.setItem(chave,JSON.stringify(n))
+}
 function Saude(){
   type SReg={data:string,peso:number,imc:number,gordura:number,humor:number,energia:number,intestino:string,sint:string,sono?:number}
   type ConsReg={data:string,tipo:string,obs:string,proximo:string}
@@ -1740,7 +1783,7 @@ function Saude(){
     {data:"01/06",peso:63.95,imc:24.1,gordura:33.6,humor:0,energia:0,intestino:"",sint:""},{data:"08/06",peso:63.95,imc:24.1,gordura:33.6,humor:0,energia:0,intestino:"",sint:""},{data:"15/06",peso:63.65,imc:24.0,gordura:33.4,humor:0,energia:0,intestino:"",sint:""},{data:"21/06",peso:62.45,imc:23.5,gordura:32.6,humor:0,energia:0,intestino:"",sint:""},{data:"27/06",peso:61.95,imc:23.3,gordura:32.3,humor:0,energia:0,intestino:"",sint:""},
     {data:"01/07",peso:61.45,imc:23.1,gordura:32.0,humor:0,energia:0,intestino:"",sint:""},{data:"06/07",peso:61.85,imc:23.3,gordura:32.2,humor:0,energia:0,intestino:"",sint:""},{data:"11/07",peso:61.15,imc:23.0,gordura:31.7,humor:0,energia:0,intestino:"",sint:""},{data:"18/07",peso:62.35,imc:23.5,gordura:32.6,humor:0,energia:0,intestino:"",sint:""},{data:"23/07",peso:63.55,imc:23.9,gordura:33.4,humor:0,energia:0,intestino:"",sint:""},
   ]
-  const [extras]=React.useState<SReg[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_saude_extra')||'[]')}catch{return []}})
+  const [extras,setExtras]=React.useState<SReg[]>(()=>{try{return JSON.parse(localStorage.getItem('dos_saude_extra')||'[]')}catch{return []}})
   const [aba,setAba]=React.useState<'denise'|'flavio'|'domi'|'derick'>('denise')
   const [consuls,setConsuls]=React.useState<Record<string,ConsReg[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_consuls')||'{}')}catch{return {}}})
   const [criancas,setCriancas]=React.useState<Record<string,CriancaReg[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_criancas')||'{}')}catch{return {}}})
@@ -1748,7 +1791,7 @@ function Saude(){
   const [novaConsulta,setNovaConsulta]=React.useState({tipo:'',data:'',obs:'',proximo:''})
   const [novaCrianca,setNovaCrianca]=React.useState({peso:'',altura:'',obs:''})
   const [savedC,setSavedC]=React.useState(false)
-  const [extrasF]=React.useState<SReg[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_saude_extra_flavio')||'null');return v||[{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}catch{return [{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}})
+  const [extrasF,setExtrasF]=React.useState<SReg[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_saude_extra_flavio')||'null');return v||[{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}catch{return [{data:'06/08',peso:95.25,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''},{data:'24/07',peso:95.15,imc:0,gordura:0,humor:0,energia:0,intestino:'',sint:''}]}})
   const [medD]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_denise')||'null');return v||[{data:'04/06',pescoco:0,ombro:37,peito:91,cintura:73,bracE:25,bracD:25.5,antebracoE:19.5,antebracoD:19,abdSup:78,abdInf:81,coxaE:48,coxaD:49,panturE:31,panturD:33,quadril:91.5}]}catch{return []}})
   const [medF]=React.useState<any[]>(()=>{try{const v=JSON.parse(localStorage.getItem('dos_medidas_flavio')||'null');return v||[{data:'29/07',pescoco:41,ombro:42,peito:99,cintura:100,bracE:33,bracD:33,antebracoE:28,antebracoD:29,abdSup:96,abdInf:103,coxaE:56,coxaD:55,panturE:42,panturD:42,quadril:108}]}catch{return []}})
   const [aguaDenise,setAguaDenise]=React.useState(lerAguaHoje)
@@ -2139,16 +2182,16 @@ function Saude(){
             <Card title="Ações rápidas">
               {!diaEhHoje&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.35)',marginBottom:10}}>Ações rápidas registram sempre em "hoje" — volte pro dia atual pra usar.</div>}
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,opacity:diaEhHoje?1:.4,pointerEvents:diaEhHoje?'auto' as const:'none' as const}}>
-                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>⚖️ Registrar peso</button>
+                <button onClick={()=>registrarCampoRapido(p.pessoa,'peso','Peso (kg)?',p.pessoa==='denise'?extras:extrasF,p.pessoa==='denise'?setExtras:setExtrasF)} style={acaoBtnStyle}>⚖️ Registrar peso</button>
                 <button onClick={()=>addAgua(250)} style={acaoBtnStyle}>💧 Registrar água</button>
-                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>🌙 Registrar sono</button>
-                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>⚡ Registrar energia</button>
-                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>😊 Registrar humor</button>
-                <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>💚 Registrar intestino</button>
+                <button onClick={()=>registrarCampoRapido(p.pessoa,'sono','Quantas horas de sono?',p.pessoa==='denise'?extras:extrasF,p.pessoa==='denise'?setExtras:setExtrasF)} style={acaoBtnStyle}>🌙 Registrar sono</button>
+                <button onClick={()=>registrarCampoRapido(p.pessoa,'energia','Energia (1 a 10)?',p.pessoa==='denise'?extras:extrasF,p.pessoa==='denise'?setExtras:setExtrasF)} style={acaoBtnStyle}>⚡ Registrar energia</button>
+                <button onClick={()=>registrarCampoRapido(p.pessoa,'humor','Humor (1 a 10)?',p.pessoa==='denise'?extras:extrasF,p.pessoa==='denise'?setExtras:setExtrasF)} style={acaoBtnStyle}>😊 Registrar humor</button>
+                <button onClick={()=>registrarCampoRapido(p.pessoa,'intestino','Intestino (Regular/Preso/Solto)?',p.pessoa==='denise'?extras:extrasF,p.pessoa==='denise'?setExtras:setExtrasF)} style={acaoBtnStyle}>💚 Registrar intestino</button>
                 <button onClick={()=>marcarHoje(skinChave,setSkinLog)} style={acaoBtnStyle}>🧴 Skin care{skinLog[hoje]?' ✓':''}</button>
                 <button onClick={()=>marcarHoje(probChave,setProbLog)} style={acaoBtnStyle}>💊 Probióticos{probLog[hoje]?' ✓':''}</button>
               </div>
-              <button onClick={()=>irParaRegistro(p.pessoa)} style={{...acaoBtnStyle,width:'100%',marginTop:8,opacity:diaEhHoje?1:.4,pointerEvents:diaEhHoje?'auto' as const:'none' as const}}>+ Outro registro</button>
+              <button onClick={()=>registrarVariosRapido(p.pessoa,p.pessoa==='denise'?extras:extrasF,p.pessoa==='denise'?setExtras:setExtrasF)} style={{...acaoBtnStyle,width:'100%',marginTop:8,opacity:diaEhHoje?1:.4,pointerEvents:diaEhHoje?'auto' as const:'none' as const}}>+ Outro registro</button>
             </Card>
           </div>
           <div style={{marginTop:16}}>{renderTirzepatidaCard(p.pessoa,p.cor)}</div>
@@ -2313,7 +2356,7 @@ function Saude(){
           <span style={{fontSize:12.5,fontWeight:600,padding:'0 4px',whiteSpace:'nowrap' as const}}>📅 {diaLabel}</span>
           <button onClick={()=>navegarDia(1)} disabled={diaEhHoje} style={{background:'none',border:'none',color:diaEhHoje?'rgba(255,255,255,.2)':'#fff',cursor:diaEhHoje?'default':'pointer',fontSize:14,padding:'2px 6px'}}>›</button>
         </div>
-        <button onClick={()=>{if(aba==='denise'||aba==='flavio')irParaRegistro(aba);else document.getElementById(`card-registrar-${aba}`)?.scrollIntoView({behavior:'smooth',block:'center'})}} style={{background:`linear-gradient(135deg,${corAba},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px 16px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const}}>{aba==='denise'||aba==='flavio'?'+ Novo registro':'+ Nova medida'}</button>
+        <button onClick={()=>{if(aba==='denise'||aba==='flavio')registrarVariosRapido(aba,aba==='denise'?extras:extrasF,aba==='denise'?setExtras:setExtrasF);else document.getElementById(`card-registrar-${aba}`)?.scrollIntoView({behavior:'smooth',block:'center'})}} style={{background:`linear-gradient(135deg,${corAba},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px 16px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const}}>{aba==='denise'||aba==='flavio'?'+ Novo registro':'+ Nova medida'}</button>
       </div>
     </div>
 
