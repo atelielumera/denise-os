@@ -45,7 +45,7 @@ function lerMetaProteina():number{return Number(localStorage.getItem('dos_meta_p
 function lerMetaCalorias():number|null{const v=localStorage.getItem('dos_meta_kcal');return v?Number(v):null}
 function lerMetaRefeicoes():number|null{const v=localStorage.getItem('dos_meta_refeicoes');return v?Number(v):null}
 function novoIdRef():string{return `${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
-const navItems=[['/', 'Home','🏠'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Atividade física','💪'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/relatorios','Relatórios','📊'],['/assistente','Luna','🌙'],['/config','Configurações','⚙️']]
+const navItems=[['/', 'Home','🏠'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Atividade física','💪'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/assistente','Luna','🌙'],['/relatorios','Relatórios','📊'],['/config','Configurações','⚙️']]
 
 function AuthScreen(){
   const [email,setEmail]=React.useState('')
