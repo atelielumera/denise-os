@@ -247,6 +247,17 @@ export async function buildLunaContext() {
   const aguaLog = d.dos_agua_log || {}
   const aguaHojeMl = Number(aguaLog[hojeIso] || 0)
 
+  const refsLog = d.dos_refs_log || {}
+  const refeicoesHoje = Array.isArray(refsLog[hojeIso]) ? refsLog[hojeIso] : []
+  const refeicoesOntemLuna = Array.isArray(refsLog[ontemIso]) ? refsLog[ontemIso] : []
+  const proteinaHojeG = refeicoesHoje.reduce((a, r) => a + (r.prot || 0), 0)
+  const mapRefeicaoContexto = (r) => ({ tipo: r.tipo, nome: r.nome, hora: r.hora, proteina_g: typeof r.prot === 'number' ? r.prot : null, calorias: typeof r.cal === 'number' ? r.cal : null })
+  const resumoAlimentacao7dias = Array.from({ length: 7 }, (_, i) => {
+    const iso = dataIsoBR(-i)
+    const refsDia = Array.isArray(refsLog[iso]) ? refsLog[iso] : []
+    return { data: iso, agua_ml: Number(aguaLog[iso] || 0), proteina_g: refsDia.reduce((a, r) => a + (r.prot || 0), 0), refeicoes: refsDia.length }
+  })
+
   const diaSemanaHoje = new Date(hojeIso + 'T12:00:00-03:00').getDay()
   const buscaDomiHoje = BUSCA_DOMI_POR_DIA[diaSemanaHoje] || null
 
@@ -254,6 +265,11 @@ export async function buildLunaContext() {
     data_hoje: hojeIso,
     agua_hoje_ml: aguaHojeMl,
     meta_agua_ml: Number(d.dos_meta_agua_ml || 2500),
+    proteina_hoje_g: proteinaHojeG,
+    meta_proteina_g: Number(d.dos_meta_prot_g || 120),
+    refeicoes_hoje: refeicoesHoje.map(mapRefeicaoContexto),
+    refeicoes_ontem: refeicoesOntemLuna.map(mapRefeicaoContexto),
+    resumo_alimentacao_7dias: resumoAlimentacao7dias,
     busca_domi_hoje: buscaDomiHoje,
     ultima_sincronizacao_do_app: snap?.data ? d.__updated_at || null : null,
     tirzepatida: Object.keys(tzMap).length > 0 ? { estoque_atual_mg: Number(bal?.current_balance_mg ?? 0), denise: tzMap.denise || null, flavio: tzMap.flavio || null } : null,

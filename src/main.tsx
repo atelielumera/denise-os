@@ -126,11 +126,35 @@ function Shell(){
       try{
         const {data:snap}=await supabase.from('app_snapshot').select('data').eq('id','denise').maybeSingle()
         const remoto=snap?.data||{}
-        const chaveHoje=`dos_rotina_done_${isoBR(new Date())}`
+        const isoHojeSync=isoBR(new Date())
+        const chaveHoje=`dos_rotina_done_${isoHojeSync}`
         if(Array.isArray(remoto[chaveHoje])){
           const uniao=Array.from(new Set([...(dados[chaveHoje]||[]),...remoto[chaveHoje]]))
           dados[chaveHoje]=uniao
           localStorage.setItem(chaveHoje,JSON.stringify(uniao))
+        }
+        const aguaRemotaHoje=(remoto.dos_agua_log||{})[isoHojeSync]
+        if(typeof aguaRemotaHoje==='number'){
+          const aguaLogLocal=dados.dos_agua_log||{}
+          const aguaLocalHoje=Number(aguaLogLocal[isoHojeSync]||0)
+          if(aguaRemotaHoje>aguaLocalHoje){
+            const novoLogAgua={...aguaLogLocal,[isoHojeSync]:aguaRemotaHoje}
+            dados.dos_agua_log=novoLogAgua
+            localStorage.setItem('dos_agua_log',JSON.stringify(novoLogAgua))
+          }
+        }
+        const refsRemotosHoje=(remoto.dos_refs_log||{})[isoHojeSync]
+        if(Array.isArray(refsRemotosHoje)&&refsRemotosHoje.length>0){
+          const refsLogLocal=dados.dos_refs_log||{}
+          const refsLocaisHoje:any[]=refsLogLocal[isoHojeSync]||[]
+          const idsLocais=new Set(refsLocaisHoje.map((r:any)=>r.id))
+          const novosDoRemoto=refsRemotosHoje.filter((r:any)=>r&&r.id&&!idsLocais.has(r.id))
+          if(novosDoRemoto.length>0){
+            const unidos=[...novosDoRemoto,...refsLocaisHoje]
+            const novoLogRefs={...refsLogLocal,[isoHojeSync]:unidos}
+            dados.dos_refs_log=novoLogRefs
+            localStorage.setItem('dos_refs_log',JSON.stringify(novoLogRefs))
+          }
         }
       }catch{}
       supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()}).then(()=>{})
