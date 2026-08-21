@@ -45,7 +45,7 @@ function lerMetaProteina():number{return Number(localStorage.getItem('dos_meta_p
 function lerMetaCalorias():number|null{const v=localStorage.getItem('dos_meta_kcal');return v?Number(v):null}
 function lerMetaRefeicoes():number|null{const v=localStorage.getItem('dos_meta_refeicoes');return v?Number(v):null}
 function novoIdRef():string{return `${Date.now()}_${Math.random().toString(36).slice(2,8)}`}
-const navItems=[['/', 'Home','🏠'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Atividade física','💪'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/insights','Insights','💡'],['/relatorios','Relatórios','📊'],['/assistente','Luna','🌙'],['/config','Configurações','⚙️']]
+const navItems=[['/', 'Home','🏠'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Atividade física','💪'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/relatorios','Relatórios','📊'],['/assistente','Luna','🌙'],['/config','Configurações','⚙️']]
 
 function AuthScreen(){
   const [email,setEmail]=React.useState('')
@@ -4567,77 +4567,6 @@ function Casa(){
       </div>
     </div>}
   </div>)}
-function Insights(){
-  const [tzSched,setTzSched]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
-  const [tzBalance,setTzBalance]=React.useState(0)
-  React.useEffect(()=>{(async()=>{
-    const [{data:sched},{data:bal}]=await Promise.all([
-      supabase.from('tirzepatida_schedule').select('*'),
-      supabase.from('tirzepatida_stock_balance').select('*').maybeSingle(),
-    ])
-    const map:Record<string,any>={}
-    ;(sched||[]).forEach((row:any)=>{map[row.person]={planned_dose_mg:Number(row.planned_dose_mg),interval_days:row.interval_days,next_application_date:row.next_application_date}})
-    setTzSched(map)
-    setTzBalance(Number(bal?.current_balance_mg??0))
-  })()},[])
-  const treinosI=(()=>{try{return (JSON.parse(localStorage.getItem('dos_treinos')||'[]') as any[]).filter(t=>t.status!=='nao_realizado')}catch{return []}})() as any[]
-  const leiturasI=(()=>{try{return JSON.parse(localStorage.getItem('dos_leituras')||'[]')}catch{return []}})() as any[]
-  const devI=(()=>{try{return JSON.parse(localStorage.getItem('dos_devocionais')||'[]')}catch{return []}})() as any[]
-  const casaI=(()=>{try{return JSON.parse(localStorage.getItem('dos_casa_items')||'[]')}catch{return []}})() as any[]
-  const livroI=(()=>{try{return JSON.parse(localStorage.getItem('dos_livro_atual')||'null')}catch{return null}})() as any
-  function diasUnicos(entries:any[]):Set<string>{return new Set(entries.map((e:any)=>e.data))}
-  function sequencia(dias:Set<string>):number{
-    let n=0;const d=new Date()
-    while(dias.has(isoBR(d))){n++;d.setDate(d.getDate()-1)}
-    return n
-  }
-  const treinosSemana=(()=>{const hoje=new Date();const dias=diasUnicos(treinosI);let c=0;for(let i=0;i<7;i++){const d=new Date(hoje);d.setDate(d.getDate()-i);if(dias.has(isoBR(d)))c++}return c})()
-  const seqLeitura=sequencia(diasUnicos(leiturasI))
-  const seqDev=sequencia(diasUnicos(devI))
-  const hojeIsoI=isoBR(new Date())
-  const em7diasIsoI=isoBR(new Date(Date.now()+7*86400000))
-  const contasVencendo=casaI.filter((i:any)=>i.cat==='Contas'&&i.venc&&!i.done&&i.venc>=hojeIsoI&&i.venc<=em7diasIsoI)
-  const pessoasSchedI=Object.keys(tzSched)
-  const tzAutonomyI=(()=>{const dDen=tzSched.denise?.planned_dose_mg||5;const dFla=tzSched.flavio?.planned_dose_mg||2.5;const iDen=tzSched.denise?.interval_days||5;const iFla=tzSched.flavio?.interval_days||7;const mgDay=dDen/iDen+dFla/iFla;return mgDay>0?Math.floor(tzBalance/mgDay):0})()
-  const progressoLivro=livroI&&livroI.totalPaginas>0?Math.round(livroI.paginaAtual/livroI.totalPaginas*100):null
-  const insights:{t:string,d:string,p:string,c:string}[]=[]
-  if(treinosI.length>0)insights.push({t:`Treinos: ${treinosSemana} de 7 dias`,d:treinosSemana>=5?'Ótima consistência essa semana!':treinosSemana>=3?'Boa base — dá pra tentar chegar em mais um dia.':'Poucos treinos essa semana. Vale ajustar a meta ou o horário?',p:'últimos 7 dias',c:treinosSemana>=5?'conquista':treinosSemana>=3?'associação':'atenção'})
-  if(seqLeitura>0)insights.push({t:`Sequência de leitura: ${seqLeitura} dia${seqLeitura===1?'':'s'} 👏`,d:'Você tem lido todos os dias seguidos. Continue assim!',p:`${seqLeitura}d seguidos`,c:'conquista'})
-  if(seqDev>0)insights.push({t:`Sequência devocional: ${seqDev} dia${seqDev===1?'':'s'}`,d:'Tempo com Deus mantido em dia.',p:`${seqDev}d seguidos`,c:'conquista'})
-  if(progressoLivro!==null)insights.push({t:`${livroI.titulo||'Livro atual'}: ${progressoLivro}% lido`,d:`${livroI.paginaAtual} de ${livroI.totalPaginas} páginas.`,p:'progresso atual',c:'associação'})
-  if(contasVencendo.length>0)insights.push({t:`${contasVencendo.length} conta${contasVencendo.length===1?'':'s'} vencendo nos próximos 7 dias`,d:contasVencendo.map((c:any)=>c.n).join(', '),p:'Casa',c:'atenção'})
-  if(pessoasSchedI.length>0)insights.push({t:tzAutonomyI<=14?`Estoque de tirzepatida baixo: ~${tzAutonomyI} dias`:`Estoque de tirzepatida: ~${tzAutonomyI} dias de autonomia`,d:tzAutonomyI<=14?'Vale considerar reposição em breve.':'Autonomia tranquila por enquanto.',p:'agora',c:tzAutonomyI<=14?'atenção':'associação'})
-  const refsLogIns=lerRefsLog()
-  const aguaLogIns=(()=>{try{return JSON.parse(localStorage.getItem('dos_agua_log')||'{}')}catch{return {}}})() as Record<string,number>
-  const diasPeriodoIns=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return isoBR(d)})
-  const diasComRegistroAlimIns=diasPeriodoIns.filter(iso=>(refsLogIns[iso]||[]).length>0||Number(aguaLogIns[iso]||0)>0).length
-  const diasComMetaProtIns=diasPeriodoIns.filter(iso=>{const refs=refsLogIns[iso]||[];return refs.reduce((a,r)=>a+(r.prot||0),0)>=lerMetaProteina()}).length
-  if(diasComRegistroAlimIns>=3){
-    insights.push({t:`Proteína: meta batida em ${diasComMetaProtIns} de 7 dias`,d:diasComMetaProtIns>=5?'Consistência ótima com a meta de proteína.':diasComMetaProtIns>=3?'Boa parte da semana com a meta batida.':'Poucos dias bateram a meta de proteína essa semana.',p:'últimos 7 dias',c:diasComMetaProtIns>=5?'conquista':diasComMetaProtIns>=3?'associação':'atenção'})
-  }
-  const aguaPorDiaSemanaIns:Record<number,number[]>={}
-  Object.keys(aguaLogIns).forEach(iso=>{
-    const v=Number(aguaLogIns[iso]||0)
-    if(v<=0)return
-    const dw=new Date(iso+'T12:00:00-03:00').getDay()
-    if(!aguaPorDiaSemanaIns[dw])aguaPorDiaSemanaIns[dw]=[]
-    aguaPorDiaSemanaIns[dw].push(v)
-  })
-  const mediasPorDiaIns=Object.entries(aguaPorDiaSemanaIns).filter(([,vs])=>vs.length>=2).map(([dw,vs])=>({dw:Number(dw),media:vs.reduce((a,b)=>a+b,0)/vs.length,n:vs.length}))
-  if(mediasPorDiaIns.length>=2){
-    const mediaGeralIns=mediasPorDiaIns.reduce((a,m)=>a+m.media,0)/mediasPorDiaIns.length
-    const piorDiaIns=mediasPorDiaIns.reduce((pior,m)=>m.media<pior.media?m:pior)
-    if(piorDiaIns.media<mediaGeralIns*0.85){
-      const DIAS_NOME_INS=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado']
-      insights.push({t:`Sua ingestão de água costuma ser menor às ${DIAS_NOME_INS[piorDiaIns.dw]}s`,d:`Média de ${(piorDiaIns.media/1000).toFixed(1).replace('.',',')}L nesse dia, contra ${(mediaGeralIns/1000).toFixed(1).replace('.',',')}L nos demais dias com registro.`,p:`baseado em ${piorDiaIns.n} registros`,c:'atenção'})
-    }
-  }
-  return(<div style={{padding:'24px 28px'}}>
-    <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Insights</h1>
-    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Calculado a partir dos seus dados reais registrados no app.</p>
-    {insights.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.4)',padding:'20px 0'}}>Ainda não há dados suficientes para gerar insights. Continue registrando seus hábitos pelo app.</div>}
-    {insights.map((i,idx)=>(<div key={idx} style={{background:'linear-gradient(180deg,#16161f,#131320)',border:`1px solid ${C.line}`,borderLeft:`3px solid ${i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc}`,borderRadius:12,padding:16,marginBottom:12}}><div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{i.t}</div><div style={{fontSize:13,color:'rgba(255,255,255,.6)',lineHeight:1.5,marginBottom:10}}>{i.d}</div><div style={{display:'flex',gap:10,fontSize:11,color:'rgba(255,255,255,.4)'}}><span>{i.p}</span><span style={{background:i.c==='conquista'?'rgba(52,211,153,.15)':i.c==='atenção'?'rgba(251,191,36,.15)':'rgba(139,92,246,.15)',color:i.c==='conquista'?C.ok:i.c==='atenção'?C.warn:C.acc2,padding:'2px 8px',borderRadius:20}}>{i.c}</span></div></div>))}
-</div>)}
 function Relatorios(){
   const [tzSched,setTzSched]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
   const [tzBalance,setTzBalance]=React.useState(0)
@@ -5305,4 +5234,4 @@ function Config(){
     URL.revokeObjectURL(url)
   }
 const Toggle=({on,toggle}:{on:boolean,toggle:()=>void})=>(<div onClick={toggle} style={{width:44,height:25,borderRadius:20,background:on?C.acc:'rgba(255,255,255,.1)',position:'relative' as const,cursor:'pointer',transition:'.2s',flexShrink:0}}><div style={{position:'absolute' as const,top:2,left:on?21:2,width:21,height:21,borderRadius:'50%',background:'#fff',transition:'.2s'}}/></div>);return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Configurações</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Perfil, notificações, IA e segurança</p>{saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 16px',fontSize:13,color:C.ok,marginBottom:16}}>✓ Configurações salvas!</div>}<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}><Card title="Perfil"><div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16}}><Avatar id="denise" label="D" size={56} radius={14}/><div><div style={{fontWeight:700,fontSize:15}}>Denise</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Toque na foto para alterar</div></div></div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Fuso horário</label><input value={fuso} onChange={e=>setFuso(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Formato de data</label><input value={formatoData} onChange={e=>setFormatoData(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14}}/></Card><Card title="Notificações">{[['Lembretes no app',notif,()=>setNotif((v:boolean)=>!v)],['Resumo diário',resumo,()=>setResumo((v:boolean)=>!v)]].map(([l,v,fn])=>(<div key={String(l)} style={{display:'flex',alignItems:'center',justifyContent:'space-between' as const,padding:'12px 0',borderBottom:`1px solid ${C.line}`}}><span style={{fontSize:13}}>{String(l)}</span><Toggle on={Boolean(v)} toggle={fn as ()=>void}/></div>))}</Card><Card title="Dados"><div style={{padding:'12px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>Exportar meus dados (LGPD)</div><button onClick={exportarDados} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>Exportar</button></div><div style={{padding:'12px 0'}}><div style={{fontSize:13,fontWeight:600,color:C.danger,marginBottom:8}}>Limpar dados locais</div><button onClick={()=>{localStorage.clear();window.location.reload()}} style={{background:'rgba(248,113,113,.15)',border:'1px solid rgba(248,113,113,.3)',color:C.danger,borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>Limpar</button></div></Card><Card title="WhatsApp (Luna)"><p style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:14}}>Conecte seu WhatsApp para conversar com a Luna por lá também — o QR Code aparece aqui, sem sair do app.</p>{waState==='carregando'&&<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Verificando conexão...</div>}{waState==='open'&&<div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:10,height:10,borderRadius:'50%',background:C.ok,flexShrink:0}}/><span style={{fontSize:13,color:C.ok,fontWeight:600}}>WhatsApp conectado</span></div>}{(waState==='close'||waState==='nao_criada'||waState==='erro')&&<div><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}><span style={{width:10,height:10,borderRadius:'50%',background:'rgba(255,255,255,.25)',flexShrink:0}}/><span style={{fontSize:13,color:'rgba(255,255,255,.5)'}}>WhatsApp não conectado</span></div><button onClick={conectarWhatsapp} disabled={waLoading} style={{background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:9,padding:'9px 16px',fontSize:12,fontWeight:700,cursor:'pointer',opacity:waLoading?.6:1}}>{waLoading?'Gerando QR Code...':'Gerar QR Code'}</button></div>}{waState==='connecting'&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',gap:10}}>{waQr&&<img src={waQr.startsWith('data:')?waQr:`data:image/png;base64,${waQr}`} alt="QR Code do WhatsApp" style={{width:180,height:180,borderRadius:10,background:'#fff',padding:8}}/>}{waPairingCode&&<div style={{fontSize:13,color:'rgba(255,255,255,.7)'}}>Código: <strong>{waPairingCode}</strong></div>}<div style={{fontSize:12,color:'rgba(255,255,255,.4)',textAlign:'center' as const}}>Abra o WhatsApp {'>'} Aparelhos conectados {'>'} Conectar um aparelho e escaneie o QR Code.</div><button onClick={conectarWhatsapp} disabled={waLoading} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>Atualizar QR Code</button></div>}{waErro&&<div style={{marginTop:10,fontSize:12,color:C.danger}}>{waErro}</div>}</Card></div><button onClick={salvarConfig} style={{marginTop:20,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:11,padding:'13px 28px',fontSize:14,fontWeight:700,cursor:'pointer'}}>✓ Salvar configurações</button></div>)}
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={qc}><AuthGate><PhotoProvider><FamProvider><BrowserRouter><Routes><Route element={<Shell/>}><Route index element={<Home/>}/><Route path="agenda" element={<Agenda/>}/><Route path="espiritual" element={<Espiritual/>}/><Route path="saude" element={<Saude/>}/><Route path="alimentacao" element={<Alimentacao/>}/><Route path="exercicios" element={<Exercicios/>}/><Route path="tirzepatida" element={<Navigate to="/saude" replace/>}/><Route path="familia" element={<Familia/>}/><Route path="trabalho" element={<Trabalho/>}/><Route path="desenvolvimento" element={<Desenvolvimento/>}/><Route path="casa" element={<Casa/>}/><Route path="insights" element={<Insights/>}/><Route path="relatorios" element={<Relatorios/>}/><Route path="assistente" element={<Assistente/>}/><Route path="config" element={<Config/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Route></Routes></BrowserRouter></FamProvider></PhotoProvider></AuthGate></QueryClientProvider></React.StrictMode>)
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={qc}><AuthGate><PhotoProvider><FamProvider><BrowserRouter><Routes><Route element={<Shell/>}><Route index element={<Home/>}/><Route path="agenda" element={<Agenda/>}/><Route path="espiritual" element={<Espiritual/>}/><Route path="saude" element={<Saude/>}/><Route path="alimentacao" element={<Alimentacao/>}/><Route path="exercicios" element={<Exercicios/>}/><Route path="tirzepatida" element={<Navigate to="/saude" replace/>}/><Route path="familia" element={<Familia/>}/><Route path="trabalho" element={<Trabalho/>}/><Route path="desenvolvimento" element={<Desenvolvimento/>}/><Route path="casa" element={<Casa/>}/><Route path="insights" element={<Navigate to="/assistente" replace/>}/><Route path="relatorios" element={<Relatorios/>}/><Route path="assistente" element={<Assistente/>}/><Route path="config" element={<Config/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Route></Routes></BrowserRouter></FamProvider></PhotoProvider></AuthGate></QueryClientProvider></React.StrictMode>)
