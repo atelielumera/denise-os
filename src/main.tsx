@@ -25,7 +25,7 @@ function salvarAguaHoje(ml:number){
     localStorage.setItem('dos_agua_log',JSON.stringify(log))
   }catch{}
 }
-const navItems=[['/', 'Home','🏠'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Exercícios','💪'],['/tirzepatida','Tirzepatida','💉'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/insights','Insights','💡'],['/relatorios','Relatórios','📊'],['/assistente','Luna','🌙'],['/config','Configurações','⚙️']]
+const navItems=[['/', 'Home','🏠'],['/agenda','Agenda','📅'],['/espiritual','Espiritual','📖'],['/saude','Saúde','❤️'],['/alimentacao','Alimentação','🍽️'],['/exercicios','Exercícios','💪'],['/familia','Família','👨‍👩‍👧'],['/trabalho','Trabalho','💼'],['/desenvolvimento','Desenvolvimento','📈'],['/casa','Casa','🏡'],['/insights','Insights','💡'],['/relatorios','Relatórios','📊'],['/assistente','Luna','🌙'],['/config','Configurações','⚙️']]
 
 function AuthScreen(){
   const [email,setEmail]=React.useState('')
@@ -310,7 +310,7 @@ function Home(){const navigate=useNavigate();
         <div style={{height:9,borderRadius:6,background:C.s3,overflow:'hidden',marginTop:14}}><div style={{height:'100%',width:`${rotinaPct}%`,borderRadius:6,background:`linear-gradient(90deg,${C.acc2},${C.acc})`}}/></div>
         <div style={{display:'flex',justifyContent:'space-between',marginTop:11,fontSize:12}}><span style={{color:'rgba(255,255,255,.5)'}}>Sequência atual: <b style={{color:'#fff'}}>1 dia 🔥</b></span><span style={{color:'rgba(255,255,255,.5)'}}>Meta semanal: <b style={{color:'#fff'}}>0%</b></span></div>
       </Card></div>
-      <div style={{gridColumn:'span 3'}}><Card title="Tirzepatida" action={<NavLink to="/tirzepatida" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Gerenciar</NavLink>}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,fontSize:13,marginBottom:11}}><div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Última aplicação</div><div style={{fontWeight:800}}>{tzUltimaDenise?fmtIsoLongH(String(tzUltimaDenise.applied_at).slice(0,10)):'—'}</div><div style={{fontSize:11,color:C.ok}}>{tzUltimaDenise?`${tzUltimaDenise.dose_mg} mg`:''}</div></div><div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Próxima aplicação</div><div style={{fontWeight:800}}>{fmtIsoLongH(tzSched.denise?.next_application_date)}</div><div style={{fontSize:11,color:C.danger}}>{tzSched.denise?.next_application_date?(()=>{const dias=Math.ceil((new Date(tzSched.denise.next_application_date+'T12:00:00').getTime()-Date.now())/86400000);return dias>0?`Em ${dias} dia${dias===1?'':'s'}`:dias===0?'Hoje':'Atrasada'})():''}</div></div></div><div style={{display:'flex',alignItems:'center',gap:11,background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'11px 13px',marginBottom:11}}><div style={{width:36,height:36,borderRadius:10,background:'rgba(139,92,246,.14)',display:'grid',placeItems:'center',fontSize:17}}>💉</div><div><div style={{fontSize:21,fontWeight:800}}>{tzBalance} <small style={{fontSize:13}}>mg</small></div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Estoque atual</div></div><div style={{marginLeft:'auto',textAlign:'right'}}><div style={{fontWeight:800,fontSize:14}}>~{tzAutonomy} dias</div><div style={{fontSize:10,color:'rgba(255,255,255,.4)'}}>de estoque</div></div></div><NavLink to="/tirzepatida" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,textDecoration:'none'}}>+ Registrar aplicação</NavLink><p style={{fontSize:10.5,color:'rgba(255,255,255,.4)',marginTop:10,borderTop:`1px solid ${C.line}`,paddingTop:9,lineHeight:1.4}}>Não substitui orientação médica.</p></Card></div>
+      <div style={{gridColumn:'span 3'}}><Card title="Tirzepatida" action={<NavLink to="/saude" style={{fontSize:12,color:C.acc2,textDecoration:'none'}}>Gerenciar</NavLink>}><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,fontSize:13,marginBottom:11}}><div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Última aplicação</div><div style={{fontWeight:800}}>{tzUltimaDenise?fmtIsoLongH(String(tzUltimaDenise.applied_at).slice(0,10)):'—'}</div><div style={{fontSize:11,color:C.ok}}>{tzUltimaDenise?`${tzUltimaDenise.dose_mg} mg`:''}</div></div><div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Próxima aplicação</div><div style={{fontWeight:800}}>{fmtIsoLongH(tzSched.denise?.next_application_date)}</div><div style={{fontSize:11,color:C.danger}}>{tzSched.denise?.next_application_date?(()=>{const dias=Math.ceil((new Date(tzSched.denise.next_application_date+'T12:00:00').getTime()-Date.now())/86400000);return dias>0?`Em ${dias} dia${dias===1?'':'s'}`:dias===0?'Hoje':'Atrasada'})():''}</div></div></div><div style={{display:'flex',alignItems:'center',gap:11,background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'11px 13px',marginBottom:11}}><div style={{width:36,height:36,borderRadius:10,background:'rgba(139,92,246,.14)',display:'grid',placeItems:'center',fontSize:17}}>💉</div><div><div style={{fontSize:21,fontWeight:800}}>{tzBalance} <small style={{fontSize:13}}>mg</small></div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Estoque atual</div></div><div style={{marginLeft:'auto',textAlign:'right'}}><div style={{fontWeight:800,fontSize:14}}>~{tzAutonomy} dias</div><div style={{fontSize:10,color:'rgba(255,255,255,.4)'}}>de estoque</div></div></div><NavLink to="/saude" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,textDecoration:'none'}}>+ Registrar aplicação</NavLink><p style={{fontSize:10.5,color:'rgba(255,255,255,.4)',marginTop:10,borderTop:`1px solid ${C.line}`,paddingTop:9,lineHeight:1.4}}>Não substitui orientação médica.</p></Card></div>
       <div style={{gridColumn:'span 3'}}><Card title="Visão rápida"><div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
         <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'10px 12px'}}><div style={{fontSize:16}}>💧</div><div style={{fontWeight:800,fontSize:15,marginTop:4}}>{(wat/1000).toFixed(1).replace('.',',')} L</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)'}}>Água hoje / {(metaAguaHome/1000).toFixed(1).replace('.',',')} L</div></div>
         <div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'10px 12px'}}><div style={{fontSize:16}}>🔥</div><div style={{fontWeight:800,fontSize:15,marginTop:4}}>{treinosSemana.length} / {diasTreinoPlanejados}</div><div style={{fontSize:10.5,color:'rgba(255,255,255,.4)'}}>Treinos esta semana</div></div>
@@ -355,10 +355,10 @@ function Home(){const navigate=useNavigate();
           return(<div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
             <span style={{width:24,height:24,borderRadius:'50%',display:'grid',placeItems:'center',background:dueToday||overdue?'rgba(139,92,246,.2)':'rgba(255,255,255,.07)',color:dueToday||overdue?C.acc2:'rgba(255,255,255,.4)',fontSize:11,flexShrink:0}}>💉</span>
             <span style={{flex:1,fontSize:13.5,color:'#f3f3f8'}}>{p==='denise'?'Você':'Flávio'} · {info.planned_dose_mg} mg · {fmtIsoH(info.next_application_date)}{dueToday?' (hoje)':overdue?' (atrasada)':''}</span>
-            <NavLink to="/tirzepatida" style={{fontSize:11,color:C.acc2,textDecoration:'none',flexShrink:0}}>Registrar →</NavLink>
+            <NavLink to="/saude" style={{fontSize:11,color:C.acc2,textDecoration:'none',flexShrink:0}}>Registrar →</NavLink>
           </div>)
         })}
-        <NavLink to="/tirzepatida" style={{display:'block',marginTop:10,textAlign:'center' as const,fontSize:12,color:C.acc2,textDecoration:'none'}}>+ Registrar aplicação</NavLink>
+        <NavLink to="/saude" style={{display:'block',marginTop:10,textAlign:'center' as const,fontSize:12,color:C.acc2,textDecoration:'none'}}>+ Registrar aplicação</NavLink>
       </div>
       <div style={{gridColumn:'span 4'}}><Card title="Lembretes">{lembretes.length>0?lembretes.map(([icon,name,val],i)=>(<Lrow key={i} icon={icon} name={name} val={val}/>)):<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Nenhum lembrete pendente 🎉</div>}<button onClick={()=>setShowEditRotina(true)} style={{marginTop:10,width:'100%',background:'transparent',border:`1px dashed ${C.line}`,color:C.acc2,borderRadius:9,padding:'8px',fontSize:12,fontWeight:600,cursor:'pointer'}}>+ Novo lembrete</button></Card></div>
       <div style={{gridColumn:'span 4'}}><Card title="Luna"><div style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:12,padding:'12px 13px',fontSize:13,color:'rgba(255,255,255,.7)',lineHeight:1.5,marginBottom:11}}>{g}, Denise! 🌟<br/>Hoje é um ótimo dia para cuidar de você.<br/>Foco sugerido: Hidratação e constância. 💜</div><NavLink to="/assistente" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',borderRadius:10,padding:'10px',fontSize:13,fontWeight:700,textDecoration:'none'}}>Falar com a Luna</NavLink></Card></div>
@@ -518,7 +518,7 @@ function Rotina(){
                 return(<div key={p} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
                   <span style={{width:24,height:24,borderRadius:'50%',display:'grid',placeItems:'center',background:dueToday||overdue?'rgba(139,92,246,.2)':'rgba(255,255,255,.07)',color:dueToday||overdue?C.acc2:'rgba(255,255,255,.4)',fontSize:11,flexShrink:0}}>💉</span>
                   <span style={{flex:1,fontSize:13.5,color:'#f3f3f8'}}>{p==='denise'?'Você':'Flávio'} · {info.dose} mg · {info.next?new Date(info.next+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}):'—'}{dueToday?' (hoje)':overdue?' (atrasada)':''}</span>
-                  <NavLink to="/tirzepatida" style={{fontSize:11,color:C.acc2,textDecoration:'none',flexShrink:0}}>Registrar →</NavLink>
+                  <NavLink to="/saude" style={{fontSize:11,color:C.acc2,textDecoration:'none',flexShrink:0}}>Registrar →</NavLink>
                 </div>)
               })}
             </div>
@@ -2617,141 +2617,6 @@ function Exercicios(){
     </div>
   </div>)
 }
-function TirzepatidaPage(){
-  const [loading,setLoading]=React.useState(true)
-  const [schedules,setSchedules]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
-  const [balance,setBalance]=React.useState(0)
-  const [applications,setApplications]=React.useState<any[]>([])
-  const [person,setPerson]=React.useState<'denise'|'flavio'>('denise')
-  const [dose,setDose]=React.useState('5')
-  const [date,setDate]=React.useState(isoBR(new Date()))
-  const [msg,setMsg]=React.useState('')
-  const [filtro,setFiltro]=React.useState<'todos'|'denise'|'flavio'>('todos')
-  const [seeding,setSeeding]=React.useState(false)
-
-  function fmtIso(iso:string|null|undefined){if(!iso)return '—';return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
-  function addDaysIso(iso:string,n:number){const d=new Date(iso);d.setDate(d.getDate()+n);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}
-
-  async function load(){
-    setLoading(true)
-    const [{data:sched},{data:bal},{data:apps}]=await Promise.all([
-      supabase.from('tirzepatida_schedule').select('*'),
-      supabase.from('tirzepatida_stock_balance').select('*').maybeSingle(),
-      supabase.from('tirzepatida_applications').select('*').order('applied_at',{ascending:false}),
-    ])
-    const map:Record<string,any>={}
-    ;(sched||[]).forEach((row:any)=>{map[row.person]={planned_dose_mg:Number(row.planned_dose_mg),interval_days:row.interval_days,next_application_date:row.next_application_date}})
-    setSchedules(map)
-    setBalance(Number(bal?.current_balance_mg??0))
-    setApplications(apps||[])
-    setLoading(false)
-  }
-
-  React.useEffect(()=>{load()},[])
-
-  async function seed(){
-    setSeeding(true);setMsg('')
-    try{
-      const {data:existing}=await supabase.from('tirzepatida_schedule').select('person')
-      if(existing&&existing.length>0){setMsg('Dados já inicializados.');setSeeding(false);return}
-
-      const {error:e1}=await supabase.from('tirzepatida_schedule').insert([
-        {person:'denise',planned_dose_mg:5,interval_days:5},
-        {person:'flavio',planned_dose_mg:2.5,interval_days:7},
-      ])
-      if(e1) throw e1
-
-      const hist=[
-        {person:'denise',applied_at:'2026-06-30T08:00:00',dose_mg:7.5},
-        {person:'denise',applied_at:'2026-07-05T08:00:00',dose_mg:7.5},
-        {person:'denise',applied_at:'2026-07-08T08:00:00',dose_mg:7.5},
-        {person:'denise',applied_at:'2026-07-13T08:00:00',dose_mg:7.5},
-        {person:'denise',applied_at:'2026-07-18T08:00:00',dose_mg:10},
-      ]
-      const {error:e2}=await supabase.from('tirzepatida_applications').insert(hist.map(h=>({...h,counted_in_stock:false})))
-      if(e2) throw e2
-
-      const {error:e3}=await supabase.rpc('tirze_register_movement',{p_type:'entrada',p_amount_mg:120,p_notes:'Saldo inicial oficial'})
-      if(e3) throw e3
-
-      setMsg('✓ Dados inicializados: estoque 120 mg, histórico importado.')
-      await load()
-    }catch(e:any){
-      setMsg('❌ Erro ao inicializar: '+(e?.message||String(e)))
-    }
-    setSeeding(false)
-  }
-
-  async function register(){
-    const d=parseFloat(dose.replace(',','.'))
-    if(!d||d<=0){setMsg('❌ Dose inválida.');return}
-    if(d>balance){setMsg('❌ Estoque insuficiente.');return}
-    try{
-      const appliedAt=new Date(date+'T'+new Date().toTimeString().slice(0,8)).toISOString()
-      const {error}=await supabase.rpc('tirze_apply_dose',{p_person:person,p_applied_at:appliedAt,p_dose_mg:d})
-      if(error) throw error
-      setMsg('✓ Aplicação registrada.')
-      await load()
-    }catch(e:any){
-      setMsg('❌ '+(e?.message||String(e)))
-    }
-  }
-
-  async function excluir(app:any){
-    if(app.counted_in_stock){
-      await supabase.rpc('tirze_register_movement',{p_type:'correcao',p_amount_mg:Number(app.dose_mg),p_person:app.person,p_notes:'Estorno de exclusão de aplicação'})
-    }
-    await supabase.from('tirzepatida_applications').delete().eq('id',app.id)
-    setMsg('Registro excluído (com estorno de estoque, se aplicável).')
-    await load()
-  }
-
-  const autonomy=(()=>{
-    const dDen=schedules.denise?.planned_dose_mg||5
-    const dFla=schedules.flavio?.planned_dose_mg||2.5
-    const iDen=schedules.denise?.interval_days||5
-    const iFla=schedules.flavio?.interval_days||7
-    const mgDay=dDen/iDen+dFla/iFla
-    return mgDay>0?Math.floor(balance/mgDay):0
-  })()
-
-  const hf=filtro==='todos'?applications:applications.filter(a=>a.person===filtro)
-  const notInitialized=Object.keys(schedules).length===0
-
-  if(loading) return <div style={{padding:'24px 28px',color:'rgba(255,255,255,.5)'}}>Carregando…</div>
-
-  return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Tirzepatida <span style={{fontSize:12,background:'rgba(139,92,246,.15)',color:C.acc2,padding:'3px 9px',borderRadius:20}}>estoque compartilhado</span></h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Acompanhamento pessoal — não substitui orientação médica.</p>
-  {notInitialized?(<div style={{background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.3)',borderRadius:14,padding:20,marginBottom:20}}><p style={{margin:'0 0 10px',fontSize:14}}>Nenhum dado cadastrado ainda para Denise e Flávio.</p>{msg&&<div style={{fontSize:12.5,color:msg.startsWith('✓')?C.ok:C.danger,marginBottom:10}}>{msg}</div>}<button onClick={seed} disabled={seeding} style={{background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px 18px',fontSize:14,fontWeight:700,cursor:'pointer'}}>{seeding?'Inicializando…':'Inicializar dados'}</button></div>):(<>
-  <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>{[['Estoque',`${balance} mg`],['Autonomia',`~${autonomy} dias`],['Sua próxima',`${fmtIso(schedules.denise?.next_application_date)} · ${schedules.denise?.planned_dose_mg??5}mg`],['Flávio',`${fmtIso(schedules.flavio?.next_application_date)} · ${schedules.flavio?.planned_dose_mg??2.5}mg`]].map(([l,v])=>(<div key={l} style={{background:C.s2,border:`1px solid ${C.line}`,borderRadius:14,padding:14}}><div style={{fontSize:20,fontWeight:800}}>{v}</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)',marginTop:2}}>{l}</div></div>))}</div>
-  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-    <Card title="Registrar aplicação">
-      <label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Pessoa</label>
-      <select value={person} onChange={e=>{const p=e.target.value as 'denise'|'flavio';setPerson(p);setDose(String(schedules[p]?.planned_dose_mg??(p==='denise'?5:2.5)))}} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12,colorScheme:'dark' as const}}>
-        <option value="denise">Você — {schedules.denise?.planned_dose_mg??5} mg / a cada {schedules.denise?.interval_days??5} dias</option>
-        <option value="flavio">Flávio — {schedules.flavio?.planned_dose_mg??2.5} mg / a cada {schedules.flavio?.interval_days??7} dias</option>
-      </select>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
-        <div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Data</label><input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,colorScheme:'dark' as const}}/></div>
-        <div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Dose (mg)</label><input type="number" step="0.5" value={dose} onChange={e=>setDose(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14}}/></div>
-      </div>
-      {msg&&<div style={{background:msg.startsWith('✓')?'rgba(52,211,153,.1)':'rgba(248,113,113,.1)',border:`1px solid ${msg.startsWith('✓')?'rgba(52,211,153,.3)':'rgba(248,113,113,.3)'}`,borderRadius:10,padding:'10px 12px',fontSize:13,color:msg.startsWith('✓')?C.ok:C.danger,marginBottom:12}}>{msg}</div>}
-      <button onClick={register} style={{width:'100%',background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer'}}>Registrar aplicação</button>
-    </Card>
-    <Card title="Histórico">
-      <div style={{display:'flex',gap:8,marginBottom:12}}>{[['todos','Todos'],['denise','Você'],['flavio','Flávio']].map(([v,l])=>(<button key={v} onClick={()=>setFiltro(v as any)} style={{padding:'6px 14px',borderRadius:20,border:'none',background:filtro===v?C.acc:C.s2,color:filtro===v?'#fff':'rgba(255,255,255,.6)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{l}</button>))}</div>
-      {hf.map(a=>(<div key={a.id} style={{display:'flex',gap:8,padding:'8px 0',borderBottom:`1px solid ${C.line}`,fontSize:12.5,color:'rgba(255,255,255,.6)',alignItems:'center'}}>
-        <span style={{width:38}}>{fmtIso(a.applied_at?.slice(0,10))}</span>
-        <span style={{width:60}}>{a.person==='denise'?'Você':'Flávio'}</span>
-        <span style={{width:52}}>{Number(a.dose_mg)} mg</span>
-        <span style={{flex:1}}>{a.counted_in_stock?addDaysIso(a.applied_at.slice(0,10),schedules[a.person]?.interval_days||(a.person==='denise'?5:7)):'histórico'}</span>
-        <span style={{background:a.counted_in_stock?'rgba(52,211,153,.15)':C.s3,color:a.counted_in_stock?C.ok:'rgba(255,255,255,.4)',padding:'2px 7px',borderRadius:20,fontSize:11}}>{a.counted_in_stock?'✓':'histórico'}</span>
-        {a.counted_in_stock&&<button onClick={()=>excluir(a)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'3px 8px',fontSize:11,cursor:'pointer'}}>✕</button>}
-      </div>))}
-    </Card>
-  </div>
-  </>)}
-  </div>)
-}
 function Familia(){
   const {fam,setFam}=React.useContext(FamCtx)
   const [showEdit,setShowEdit]=React.useState(false)
@@ -3503,4 +3368,4 @@ function Config(){
     URL.revokeObjectURL(url)
   }
 const Toggle=({on,toggle}:{on:boolean,toggle:()=>void})=>(<div onClick={toggle} style={{width:44,height:25,borderRadius:20,background:on?C.acc:'rgba(255,255,255,.1)',position:'relative' as const,cursor:'pointer',transition:'.2s',flexShrink:0}}><div style={{position:'absolute' as const,top:2,left:on?21:2,width:21,height:21,borderRadius:'50%',background:'#fff',transition:'.2s'}}/></div>);return(<div style={{padding:'24px 28px'}}><h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Configurações</h1><p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Perfil, notificações, IA e segurança</p>{saved&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 16px',fontSize:13,color:C.ok,marginBottom:16}}>✓ Configurações salvas!</div>}<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}><Card title="Perfil"><div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16}}><Avatar id="denise" label="D" size={56} radius={14}/><div><div style={{fontWeight:700,fontSize:15}}>Denise</div><div style={{fontSize:12,color:'rgba(255,255,255,.4)'}}>Toque na foto para alterar</div></div></div><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Fuso horário</label><input value={fuso} onChange={e=>setFuso(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14,marginBottom:12}}/><label style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'block',marginBottom:5}}>Formato de data</label><input value={formatoData} onChange={e=>setFormatoData(e.target.value)} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'10px 12px',color:'#fff',fontSize:14}}/></Card><Card title="Notificações">{[['Lembretes no app',notif,()=>setNotif((v:boolean)=>!v)],['Resumo diário',resumo,()=>setResumo((v:boolean)=>!v)]].map(([l,v,fn])=>(<div key={String(l)} style={{display:'flex',alignItems:'center',justifyContent:'space-between' as const,padding:'12px 0',borderBottom:`1px solid ${C.line}`}}><span style={{fontSize:13}}>{String(l)}</span><Toggle on={Boolean(v)} toggle={fn as ()=>void}/></div>))}</Card><Card title="Dados"><div style={{padding:'12px 0',borderBottom:`1px solid ${C.line}`}}><div style={{fontSize:13,fontWeight:600,marginBottom:8}}>Exportar meus dados (LGPD)</div><button onClick={exportarDados} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>Exportar</button></div><div style={{padding:'12px 0'}}><div style={{fontSize:13,fontWeight:600,color:C.danger,marginBottom:8}}>Limpar dados locais</div><button onClick={()=>{localStorage.clear();window.location.reload()}} style={{background:'rgba(248,113,113,.15)',border:'1px solid rgba(248,113,113,.3)',color:C.danger,borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>Limpar</button></div></Card><Card title="WhatsApp (Luna)"><p style={{fontSize:12,color:'rgba(255,255,255,.4)',marginBottom:14}}>Conecte seu WhatsApp para conversar com a Luna por lá também — o QR Code aparece aqui, sem sair do app.</p>{waState==='carregando'&&<div style={{fontSize:13,color:'rgba(255,255,255,.4)'}}>Verificando conexão...</div>}{waState==='open'&&<div style={{display:'flex',alignItems:'center',gap:10}}><span style={{width:10,height:10,borderRadius:'50%',background:C.ok,flexShrink:0}}/><span style={{fontSize:13,color:C.ok,fontWeight:600}}>WhatsApp conectado</span></div>}{(waState==='close'||waState==='nao_criada'||waState==='erro')&&<div><div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}><span style={{width:10,height:10,borderRadius:'50%',background:'rgba(255,255,255,.25)',flexShrink:0}}/><span style={{fontSize:13,color:'rgba(255,255,255,.5)'}}>WhatsApp não conectado</span></div><button onClick={conectarWhatsapp} disabled={waLoading} style={{background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:9,padding:'9px 16px',fontSize:12,fontWeight:700,cursor:'pointer',opacity:waLoading?.6:1}}>{waLoading?'Gerando QR Code...':'Gerar QR Code'}</button></div>}{waState==='connecting'&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',gap:10}}>{waQr&&<img src={waQr.startsWith('data:')?waQr:`data:image/png;base64,${waQr}`} alt="QR Code do WhatsApp" style={{width:180,height:180,borderRadius:10,background:'#fff',padding:8}}/>}{waPairingCode&&<div style={{fontSize:13,color:'rgba(255,255,255,.7)'}}>Código: <strong>{waPairingCode}</strong></div>}<div style={{fontSize:12,color:'rgba(255,255,255,.4)',textAlign:'center' as const}}>Abra o WhatsApp {'>'} Aparelhos conectados {'>'} Conectar um aparelho e escaneie o QR Code.</div><button onClick={conectarWhatsapp} disabled={waLoading} style={{background:C.s2,border:`1px solid ${C.line}`,color:'#fff',borderRadius:9,padding:'8px 14px',fontSize:12,cursor:'pointer'}}>Atualizar QR Code</button></div>}{waErro&&<div style={{marginTop:10,fontSize:12,color:C.danger}}>{waErro}</div>}</Card></div><button onClick={salvarConfig} style={{marginTop:20,background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:11,padding:'13px 28px',fontSize:14,fontWeight:700,cursor:'pointer'}}>✓ Salvar configurações</button></div>)}
-ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={qc}><AuthGate><PhotoProvider><FamProvider><BrowserRouter><Routes><Route element={<Shell/>}><Route index element={<Home/>}/><Route path="agenda" element={<Agenda/>}/><Route path="espiritual" element={<Espiritual/>}/><Route path="saude" element={<Saude/>}/><Route path="alimentacao" element={<Alimentacao/>}/><Route path="exercicios" element={<Exercicios/>}/><Route path="tirzepatida" element={<TirzepatidaPage/>}/><Route path="familia" element={<Familia/>}/><Route path="trabalho" element={<Trabalho/>}/><Route path="desenvolvimento" element={<Desenvolvimento/>}/><Route path="casa" element={<Casa/>}/><Route path="insights" element={<Insights/>}/><Route path="relatorios" element={<Relatorios/>}/><Route path="assistente" element={<Assistente/>}/><Route path="config" element={<Config/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Route></Routes></BrowserRouter></FamProvider></PhotoProvider></AuthGate></QueryClientProvider></React.StrictMode>)
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={qc}><AuthGate><PhotoProvider><FamProvider><BrowserRouter><Routes><Route element={<Shell/>}><Route index element={<Home/>}/><Route path="agenda" element={<Agenda/>}/><Route path="espiritual" element={<Espiritual/>}/><Route path="saude" element={<Saude/>}/><Route path="alimentacao" element={<Alimentacao/>}/><Route path="exercicios" element={<Exercicios/>}/><Route path="tirzepatida" element={<Navigate to="/saude" replace/>}/><Route path="familia" element={<Familia/>}/><Route path="trabalho" element={<Trabalho/>}/><Route path="desenvolvimento" element={<Desenvolvimento/>}/><Route path="casa" element={<Casa/>}/><Route path="insights" element={<Insights/>}/><Route path="relatorios" element={<Relatorios/>}/><Route path="assistente" element={<Assistente/>}/><Route path="config" element={<Config/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Route></Routes></BrowserRouter></FamProvider></PhotoProvider></AuthGate></QueryClientProvider></React.StrictMode>)
