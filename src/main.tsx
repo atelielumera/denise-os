@@ -1764,6 +1764,17 @@ function Saude(){
   const [gorduraIn,setGorduraIn]=React.useState('')
   const [gorduraInF,setGorduraInF]=React.useState('')
   const [periodoPeso,setPeriodoPeso]=React.useState<'7'|'30'|'90'|'365'>('30')
+  const [diaSelecionado,setDiaSelecionado]=React.useState(()=>isoBR(new Date()))
+  const [cresModo,setCresModo]=React.useState<'peso'|'altura'>('peso')
+  function navegarDia(delta:number){
+    const d=new Date(diaSelecionado+'T12:00:00');d.setDate(d.getDate()+delta)
+    const novo=isoBR(d)
+    if(novo>isoBR(new Date()))return
+    setDiaSelecionado(novo)
+  }
+  const diaEhHoje=diaSelecionado===isoBR(new Date())
+  const [mostrarTodasMedidasCrianca,setMostrarTodasMedidasCrianca]=React.useState(false)
+  const diaLabel=diaEhHoje?`Hoje, ${new Date(diaSelecionado+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})}`:new Date(diaSelecionado+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'})
 
   const [tzSchedules,setTzSchedules]=React.useState<Record<string,{planned_dose_mg:number,interval_days:number,next_application_date:string|null}>>({})
   const [tzBalance,setTzBalance]=React.useState(0)
@@ -1893,13 +1904,12 @@ function Saude(){
   }
   const [medicamentos,setMedicamentos]=React.useState<Record<string,any[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_medicamentos')||'{}')}catch{return {}}})
   const [novoMed,setNovoMed]=React.useState({nome:'',dosagem:'',frequencia:'',horarios:'',ate:''})
-  const [savedMed,setSavedMed]=React.useState(false)
   function addMedicamento(kid:string){
     if(!novoMed.nome||!novoMed.dosagem)return
     const reg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),nome:novoMed.nome,dosagem:novoMed.dosagem,frequencia:novoMed.frequencia,horarios:novoMed.horarios,ate:novoMed.ate}
     const n={...medicamentos,[kid]:[reg,...(medicamentos[kid]||[])]}
     setMedicamentos(n);localStorage.setItem('dos_medicamentos',JSON.stringify(n))
-    setNovoMed({nome:'',dosagem:'',frequencia:'',horarios:'',ate:''});setSavedMed(true)
+    setNovoMed({nome:'',dosagem:'',frequencia:'',horarios:'',ate:''})
   }
   function delMedicamento(kid:string,idx:number){
     const n={...medicamentos,[kid]:(medicamentos[kid]||[]).filter((_c:any,i:number)=>i!==idx)}
@@ -2001,7 +2011,8 @@ function Saude(){
   function renderAdulto(p:{pessoa:'denise'|'flavio',nome:string,cor:string,variant:'imc'|'medidas'}){
     const lista=p.pessoa==='denise'?displayList:extrasF
     const pesoAt=p.pessoa==='denise'?pesoAtual:pesoAtualF
-    const aguaAt=p.pessoa==='denise'?aguaDenise:aguaFlavio
+    const aguaChave=p.pessoa==='denise'?'dos_agua_log':'dos_agua_log_flavio'
+    const aguaAt=diaEhHoje?(p.pessoa==='denise'?aguaDenise:aguaFlavio):Number(lerLogMarcador(aguaChave)[diaSelecionado]||0)
     const addAgua=p.pessoa==='denise'?addAguaDenise:addAguaFlavio
     const skinLog=p.pessoa==='denise'?skincareLog:skincareLogF
     const setSkinLog=p.pessoa==='denise'?setSkincareLog:setSkincareLogF
@@ -2012,7 +2023,7 @@ function Saude(){
     const consultasP=consuls[p.pessoa]||[]
     const medidasP=p.pessoa==='denise'?medD:medF
 
-    const hoje=isoBR(new Date())
+    const hoje=diaSelecionado
     const anoAtual=new Date().getFullYear()
     const registroHojeIdx=lista.findIndex((r:any)=>paraDataAproxDDMM(r.data,anoAtual)===hoje)
     const registroHoje=registroHojeIdx>=0?lista[registroHojeIdx]:null
@@ -2103,7 +2114,8 @@ function Saude(){
           </Card>
           <div style={{marginTop:16}}>
             <Card title="Ações rápidas">
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {!diaEhHoje&&<div style={{fontSize:11.5,color:'rgba(255,255,255,.35)',marginBottom:10}}>Ações rápidas registram sempre em "hoje" — volte pro dia atual pra usar.</div>}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,opacity:diaEhHoje?1:.4,pointerEvents:diaEhHoje?'auto' as const:'none' as const}}>
                 <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>⚖️ Registrar peso</button>
                 <button onClick={()=>addAgua(250)} style={acaoBtnStyle}>💧 Registrar água</button>
                 <button onClick={()=>irParaRegistro(p.pessoa)} style={acaoBtnStyle}>🌙 Registrar sono</button>
@@ -2113,7 +2125,7 @@ function Saude(){
                 <button onClick={()=>marcarHoje(skinChave,setSkinLog)} style={acaoBtnStyle}>🧴 Skin care{skinLog[hoje]?' ✓':''}</button>
                 <button onClick={()=>marcarHoje(probChave,setProbLog)} style={acaoBtnStyle}>💊 Probióticos{probLog[hoje]?' ✓':''}</button>
               </div>
-              <button onClick={()=>irParaRegistro(p.pessoa)} style={{...acaoBtnStyle,width:'100%',marginTop:8}}>+ Outro registro</button>
+              <button onClick={()=>irParaRegistro(p.pessoa)} style={{...acaoBtnStyle,width:'100%',marginTop:8,opacity:diaEhHoje?1:.4,pointerEvents:diaEhHoje?'auto' as const:'none' as const}}>+ Outro registro</button>
             </Card>
           </div>
           <div style={{marginTop:16}}>{renderTirzepatidaCard(p.pessoa,p.cor)}</div>
@@ -2142,14 +2154,144 @@ function Saude(){
     </>)
   }
 
+  function renderCrianca(kid:'domi'|'derick',nome:string,cor:string,corGrad:string){
+    const kidCrianca=criancas[kid]||[]
+    const kidConsuls=consuls[kid]||[]
+    const kidMeds=medicamentos[kid]||[]
+    const hojeIso=isoBR(new Date())
+    const ultimaMedicao=kidCrianca[0]
+    const proximasConsultas=[...kidConsuls].filter((c:any)=>c.data&&c.data>=hojeIso).sort((a:any,b:any)=>a.data.localeCompare(b.data))
+    const proximaConsulta=proximasConsultas[0]
+    const medsAtivos=kidMeds.filter((m:any)=>!m.ate||m.ate>=hojeIso).length
+    const anoAtual=new Date().getFullYear()
+    const serieCresc:{iso:string,valor:number}[]=[...kidCrianca].map((r:any)=>({iso:paraDataAproxDDMM(r.data,anoAtual),valor:cresModo==='peso'?r.peso:r.altura})).filter((x:any):x is {iso:string,valor:number}=>!!x.iso&&!!x.valor).sort((a,b)=>a.iso.localeCompare(b.iso))
+    const medidasVisiveis=mostrarTodasMedidasCrianca?kidCrianca:kidCrianca.slice(0,5)
+    const t=tamanhos[kid]||{}
+
+    return(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+      <div style={{gridColumn:'1 / -1',display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12}}>
+        <IndicadorCard label="Peso atual" valor={ultimaMedicao?`${ultimaMedicao.peso} kg`:'—'} delta={ultimaMedicao&&kidCrianca[1]?deltaInfo(ultimaMedicao.peso,kidCrianca[1].peso,1,'kg'):null}/>
+        <IndicadorCard label="Altura atual" valor={ultimaMedicao?.altura?`${ultimaMedicao.altura} cm`:'—'} delta={ultimaMedicao?.altura&&kidCrianca[1]?.altura?deltaInfo(ultimaMedicao.altura,kidCrianca[1].altura,1,'cm'):null}/>
+        <IndicadorCard label="Última medição" valor={ultimaMedicao?ultimaMedicao.data:'—'}/>
+        <IndicadorCard label="Próxima consulta" valor={proximaConsulta?proximaConsulta.data:'—'} sub={proximaConsulta?.tipo}/>
+        <IndicadorCard label="Medicamentos ativos" valor={medsAtivos}/>
+      </div>
+      <div>
+        <Card title={`Crescimento — ${nome}`} action={<div style={{display:'flex',gap:6}}>{(['peso','altura'] as const).map(v=>(<button key={v} onClick={()=>setCresModo(v)} style={{background:cresModo===v?cor:C.s2,border:'none',color:cresModo===v?'#fff':'rgba(255,255,255,.5)',borderRadius:8,padding:'5px 10px',fontSize:11,fontWeight:600,cursor:'pointer',textTransform:'capitalize' as const}}>{v}</button>))}</div>}>
+          <LinhaEvolucao pontos={serieCresc} cor={cor}/>
+        </Card>
+      </div>
+      <div>
+        <div id={`card-registrar-${kid}`}>
+        <Card title="Registrar hoje">
+          {savedC&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Salvo!</div>}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Peso (kg)</label><input type="number" step="0.1" value={novaCrianca.peso} onChange={e=>setNovaCrianca(p=>({...p,peso:e.target.value}))} placeholder="35" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Altura (cm)</label><input type="number" step="0.5" value={novaCrianca.altura} onChange={e=>setNovaCrianca(p=>({...p,altura:e.target.value}))} placeholder="140" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
+          </div>
+          <label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Observações</label>
+          <textarea value={novaCrianca.obs} onChange={e=>setNovaCrianca(p=>({...p,obs:e.target.value}))} placeholder="Ex: Tudo bem, sem sintomas." rows={3} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10,resize:'none' as const}}/>
+          <button onClick={()=>addCrianca(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${corGrad})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>Salvar medida</button>
+        </Card>
+        </div>
+      </div>
+      <div>
+        <Card title="Tamanhos" action={<span style={{fontSize:10.5,color:'rgba(255,255,255,.35)'}}>{t.atualizadoEm?`(${t.atualizadoEm})`:''}</span>}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+            {[['roupa','Roupa'],['calcado','Calçado'],['camiseta','Camiseta'],['calca','Calça']].map(([campo,label])=>(<div key={campo}><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>{label}</label><input value={t[campo]||''} onChange={e=>setTamanho(kid,campo,e.target.value)} placeholder="—" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'8px 10px',color:'#fff',fontSize:12}}/></div>))}
+          </div>
+          <button onClick={()=>setTamanho(kid,'atualizadoEm',new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}))} style={{width:'100%',background:`linear-gradient(135deg,${cor},${corGrad})`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:12.5,fontWeight:700,cursor:'pointer'}}>Atualizar tamanhos</button>
+        </Card>
+      </div>
+      <div style={{gridColumn:'1 / -1',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:16}}>
+        <Card title="Histórico de medidas">
+          {kidCrianca.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhuma medida registrada ainda.</div>}
+          {kidCrianca.length>0&&<div style={{maxHeight:mostrarTodasMedidasCrianca?260:'none',overflowY:mostrarTodasMedidasCrianca?'auto' as const:'visible' as const}}>
+            <div style={{display:'flex',gap:6,fontSize:10.5,color:'rgba(255,255,255,.4)',borderBottom:`1px solid ${C.line}`,paddingBottom:6,marginBottom:4}}><span style={{width:44}}>Data</span><span style={{width:56}}>Peso</span><span style={{width:56}}>Altura</span><span style={{flex:1}}>Obs.</span></div>
+            {medidasVisiveis.map((r:any,i:number)=>(<div key={i} style={{display:'flex',gap:6,padding:'6px 0',borderBottom:`1px solid ${C.line}`,fontSize:11.5,color:'rgba(255,255,255,.6)'}}><span style={{width:44}}>{r.data}</span><span style={{width:56,color:cor}}>{r.peso}kg</span><span style={{width:56}}>{r.altura?`${r.altura}cm`:'—'}</span><span style={{flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' as const}}>{r.obs||'—'}</span></div>))}
+          </div>}
+          {kidCrianca.length>5&&<div onClick={()=>setMostrarTodasMedidasCrianca(m=>!m)} style={{textAlign:'center' as const,fontSize:12,color:cor,cursor:'pointer',marginTop:10}}>{mostrarTodasMedidasCrianca?'Ver menos':'Ver todas as medidas'}</div>}
+        </Card>
+        <Card title="Consultas">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Tipo</label>
+            <select value={novaConsulta.tipo} onChange={e=>setNovaConsulta(p=>({...p,tipo:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark' as const}}>
+              <option value="">Selecionar</option><option>Pediatria</option><option>Dentista</option><option>Dermatologia</option><option>Vacina</option><option>Oftalmologia</option><option>Ortopedia</option><option>Outro</option>
+            </select></div>
+            <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novaConsulta.data} onChange={e=>setNovaConsulta(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark' as const}}/></div>
+          </div>
+          <input value={novaConsulta.obs} onChange={e=>setNovaConsulta(p=>({...p,obs:e.target.value}))} placeholder="Observações / diagnóstico" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
+          <button onClick={()=>addConsulta(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${corGrad})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer',marginBottom:10}}>+ Registrar consulta</button>
+          {kidConsuls.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhuma consulta registrada.</div>}
+          {[...kidConsuls].sort((a:any,b:any)=>b.data.localeCompare(a.data)).slice(0,4).map((c:any,i:number)=>{
+            const futura=c.data>=hojeIso
+            return(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+              <div><div style={{fontWeight:700,fontSize:12.5,color:cor}}>{c.tipo}</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{c.data}</div></div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:10.5,fontWeight:700,color:futura?C.warn:C.ok,background:futura?'rgba(251,191,36,.12)':'rgba(52,211,153,.15)',padding:'3px 9px',borderRadius:20}}>{futura?'Próxima':'✓'}</span>
+                <button onClick={()=>delConsulta(kid,kidConsuls.indexOf(c))} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>
+              </div>
+            </div>)
+          })}
+        </Card>
+        <Card title="Medicamentos">
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+            <input value={novoMed.nome} onChange={e=>setNovoMed(p=>({...p,nome:e.target.value}))} placeholder="Medicamento" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:12.5}}/>
+            <input value={novoMed.dosagem} onChange={e=>setNovoMed(p=>({...p,dosagem:e.target.value}))} placeholder="Dosagem" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:12.5}}/>
+            <input value={novoMed.frequencia} onChange={e=>setNovoMed(p=>({...p,frequencia:e.target.value}))} placeholder="Frequência" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:12.5}}/>
+            <input value={novoMed.horarios} onChange={e=>setNovoMed(p=>({...p,horarios:e.target.value}))} placeholder="Horários" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:12.5}}/>
+          </div>
+          <button onClick={()=>addMedicamento(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${corGrad})`,color:'#fff',border:'none',borderRadius:10,padding:'10px',fontSize:12.5,fontWeight:700,cursor:'pointer',marginBottom:10}}>+ Registrar medicamento</button>
+          {kidMeds.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'10px 0'}}>Nenhum medicamento registrado.</div>}
+          {kidMeds.slice(0,4).map((m:any,i:number)=>{
+            const ativo=!m.ate||m.ate>=hojeIso
+            return(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
+              <div><div style={{fontWeight:700,fontSize:12.5,color:cor}}>{m.nome}</div><div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{m.dosagem}{m.frequencia?` · ${m.frequencia}`:''}</div></div>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:10.5,fontWeight:700,color:ativo?C.ok:'rgba(255,255,255,.4)',background:ativo?'rgba(52,211,153,.15)':C.s3,padding:'3px 9px',borderRadius:20}}>{ativo?'Ativo':'Encerrado'}</span>
+                <button onClick={()=>delMedicamento(kid,i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button>
+              </div>
+            </div>)
+          })}
+          {kidMeds.length>4&&<div style={{textAlign:'center' as const,fontSize:12,color:cor,marginTop:6}}>Ver todos medicamentos ({kidMeds.length})</div>}
+        </Card>
+      </div>
+    </div>)
+  }
+
+  const corAba=membros.find(m=>m.id===aba)?.cor||C.acc2
   return(<div style={{padding:'24px 28px'}}>
-    <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Saúde da Família</h1>
-    <p style={{color:'rgba(255,255,255,.4)',fontSize:13,marginBottom:20}}>Acompanhamento individual · registros · consultas</p>
-    <div style={{display:'flex',gap:10,marginBottom:20}}>
-      {membros.map(m=>(<button key={m.id} onClick={()=>setAba(m.id as typeof aba)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',borderRadius:12,border:`2px solid ${aba===m.id?m.cor:'rgba(255,255,255,.1)'}`,background:aba===m.id?`rgba(${m.cor==='#a78bfa'?'167,139,250':m.cor==='#38bdf8'?'56,189,248':m.cor==='#f472b6'?'244,114,182':'52,211,153'},.1)`:'transparent',cursor:'pointer',color:'#fff'}}>
-        <Avatar id={m.id} label={m.nome[0]} size={32} radius={8}/>
-        <span style={{fontWeight:600,fontSize:14}}>{m.nome}</span>
-      </button>))}
+    <div style={{display:'flex',justifyContent:'space-between' as const,alignItems:'flex-start',marginBottom:20,gap:16,flexWrap:'wrap' as const}}>
+      <div>
+        <h1 style={{fontSize:24,fontWeight:800,marginBottom:4}}>Saúde da Família</h1>
+        <p style={{color:'rgba(255,255,255,.4)',fontSize:13}}>Acompanhamento individual · registros · consultas</p>
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:14}}>
+        <span title="Buscar" style={{cursor:'pointer',color:'rgba(255,255,255,.5)',fontSize:16}}>🔍</span>
+        <span title="Notificações" style={{cursor:'pointer',color:'rgba(255,255,255,.5)',fontSize:16,position:'relative' as const}}>🔔</span>
+        <span title="Tema" style={{cursor:'pointer',color:'rgba(255,255,255,.5)',fontSize:16}}>🌙</span>
+        <div style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+          <Avatar id="denise" label="D" size={30} radius={9}/>
+          <span style={{fontSize:13,fontWeight:600}}>Denise</span>
+          <span style={{color:'rgba(255,255,255,.4)',fontSize:11}}>▾</span>
+        </div>
+      </div>
+    </div>
+    <div style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',marginBottom:20,gap:16,flexWrap:'wrap' as const}}>
+      <div style={{display:'flex',gap:10}}>
+        {membros.map(m=>(<button key={m.id} onClick={()=>setAba(m.id as typeof aba)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',borderRadius:12,border:`2px solid ${aba===m.id?m.cor:'rgba(255,255,255,.1)'}`,background:aba===m.id?`rgba(${m.cor==='#a78bfa'?'167,139,250':m.cor==='#38bdf8'?'56,189,248':m.cor==='#f472b6'?'244,114,182':'52,211,153'},.1)`:'transparent',cursor:'pointer',color:'#fff'}}>
+          <Avatar id={m.id} label={m.nome[0]} size={32} radius={8}/>
+          <span style={{fontWeight:600,fontSize:14}}>{m.nome}</span>
+        </button>))}
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:4,background:C.s2,border:`1px solid ${C.line}`,borderRadius:10,padding:'6px 8px'}}>
+          <button onClick={()=>navegarDia(-1)} style={{background:'none',border:'none',color:'#fff',cursor:'pointer',fontSize:14,padding:'2px 6px'}}>‹</button>
+          <span style={{fontSize:12.5,fontWeight:600,padding:'0 4px',whiteSpace:'nowrap' as const}}>📅 {diaLabel}</span>
+          <button onClick={()=>navegarDia(1)} disabled={diaEhHoje} style={{background:'none',border:'none',color:diaEhHoje?'rgba(255,255,255,.2)':'#fff',cursor:diaEhHoje?'default':'pointer',fontSize:14,padding:'2px 6px'}}>›</button>
+        </div>
+        <button onClick={()=>{if(aba==='denise'||aba==='flavio')irParaRegistro(aba);else document.getElementById(`card-registrar-${aba}`)?.scrollIntoView({behavior:'smooth',block:'center'})}} style={{background:`linear-gradient(135deg,${corAba},#7c3aed)`,color:'#fff',border:'none',borderRadius:10,padding:'10px 16px',fontSize:13,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap' as const}}>{aba==='denise'||aba==='flavio'?'+ Novo registro':'+ Nova medida'}</button>
+      </div>
     </div>
 
     {aba==='denise'&&<div>
@@ -2334,82 +2476,8 @@ function Saude(){
       </div>
     </div>}
 
-    {(aba==='domi'||aba==='derick')&&<div>
-      {(()=>{
-        const kid=aba
-        const nome=kid==='domi'?'Domi':'Derick'
-        const cor=kid==='domi'?C.pink:C.ok
-          const kidConsuls=consuls[kid]||[]
-        const kidCrianca=criancas[kid]||[]
-        return(<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-          <div>
-            <Card title={`Crescimento — ${nome}`}>
-              {savedC&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>✓ Salvo!</div>}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Peso (kg)</label><input type="number" step="0.1" value={novaCrianca.peso} onChange={e=>setNovaCrianca(p=>({...p,peso:e.target.value}))} placeholder="35" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Altura (cm)</label><input type="number" step="0.5" value={novaCrianca.altura} onChange={e=>setNovaCrianca(p=>({...p,altura:e.target.value}))} placeholder="140" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-              </div>
-              <input value={novaCrianca.obs} onChange={e=>setNovaCrianca(p=>({...p,obs:e.target.value}))} placeholder="Observações" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
-              <button onClick={()=>addCrianca(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${kid==='domi'?'#9d174d':'#15803d'})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar medida</button>
-              {kidCrianca.length>0&&<div style={{marginTop:12}}>
-                <div style={{display:'flex',gap:6,fontSize:11,color:'rgba(255,255,255,.4)',borderBottom:`1px solid ${C.line}`,paddingBottom:6,marginBottom:4}}><span style={{width:40}}>Data</span><span style={{width:50}}>Peso</span><span>Altura</span></div>
-                {kidCrianca.map((r,i)=>(<div key={i} style={{display:'flex',gap:6,padding:'6px 0',borderBottom:`1px solid ${C.line}`,fontSize:12.5,color:'rgba(255,255,255,.6)'}}><span style={{width:40}}>{r.data}</span><span style={{width:50,color:cor}}>{r.peso}kg</span><span>{r.altura?`${r.altura}cm`:'—'}</span></div>))}
-              </div>}
-              <div style={{marginTop:16,borderTop:`1px solid ${C.line}`,paddingTop:12}}>
-                <div style={{fontSize:12,fontWeight:700,marginBottom:8,color:'rgba(255,255,255,.6)'}}>Tamanhos (atualizar quando mudar)</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  {[['roupa','Roupa'],['calcado','Calçado'],['camiseta','Camiseta'],['calca','Calça']].map(([campo,label])=>(<div key={campo}><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:3}}>{label}</label><input value={(tamanhos[kid]||{})[campo]||''} onChange={e=>setTamanho(kid,campo,e.target.value)} placeholder="Ex: 12 anos / 34" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:8,padding:'8px 10px',color:'#fff',fontSize:12}}/></div>))}
-                </div>
-              </div>
-            </Card>
-          </div>
-          <div>
-            <Card title={`Consultas — ${nome}`}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Tipo</label>
-                <select value={novaConsulta.tipo} onChange={e=>setNovaConsulta(p=>({...p,tipo:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}>
-                  <option value="">Selecionar</option><option>Pediatria</option><option>Dentista</option><option>Vacina</option><option>Oftalmologia</option><option>Ortopedia</option><option>Outro</option>
-                </select></div>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Data</label><input type="date" value={novaConsulta.data} onChange={e=>setNovaConsulta(p=>({...p,data:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
-              </div>
-              <input value={novaConsulta.obs} onChange={e=>setNovaConsulta(p=>({...p,obs:e.target.value}))} placeholder="Observações / diagnóstico" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:8}}/>
-              <input value={novaConsulta.proximo} onChange={e=>setNovaConsulta(p=>({...p,proximo:e.target.value}))} placeholder="Próxima consulta" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,marginBottom:10}}/>
-              <button onClick={()=>addConsulta(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${kid==='domi'?'#9d174d':'#15803d'})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar consulta</button>
-              {kidConsuls.length>0&&<div style={{marginTop:12}}>
-                {kidConsuls.map((c,i)=>(<div key={i} style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
-                  <div style={{display:'flex',justifyContent:'space-between' as const,marginBottom:3}}><span style={{fontWeight:700,fontSize:13,color:cor}}>{c.tipo}</span><span style={{fontSize:12,color:'rgba(255,255,255,.4)',display:'flex',alignItems:'center',gap:8}}>{c.data}<button onClick={()=>delConsulta(kid,i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button></span></div>
-                  {c.obs&&<div style={{fontSize:12,color:'rgba(255,255,255,.6)'}}>{c.obs}</div>}
-                  {c.proximo&&<div style={{fontSize:11,color:C.warn,marginTop:3}}>📅 Próxima: {c.proximo}</div>}
-                </div>))}
-              </div>}
-              {kidConsuls.length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhuma consulta registrada.</div>}
-            </Card>
-          </div>
-          <div style={{gridColumn:'1 / -1'}}>
-            <Card title={`Medicamentos - ${nome}`}>
-              {savedMed&&<div style={{background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.3)',borderRadius:10,padding:'10px 12px',fontSize:13,color:C.ok,marginBottom:12}}>Salvo!</div>}
-              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:10}}>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Medicamento</label><input value={novoMed.nome} onChange={e=>setNovoMed(p=>({...p,nome:e.target.value}))} placeholder="Ex: Amoxicilina" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Dosagem</label><input value={novoMed.dosagem} onChange={e=>setNovoMed(p=>({...p,dosagem:e.target.value}))} placeholder="Ex: 5ml" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Frequencia</label><input value={novoMed.frequencia} onChange={e=>setNovoMed(p=>({...p,frequencia:e.target.value}))} placeholder="Ex: 2x ao dia" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Horarios</label><input value={novoMed.horarios} onChange={e=>setNovoMed(p=>({...p,horarios:e.target.value}))} placeholder="Ex: 08:00, 20:00" style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13}}/></div>
-              
-                <div><label style={{fontSize:11,color:'rgba(255,255,255,.4)',display:'block',marginBottom:4}}>Repetir até (opcional)</label><input type="date" value={novoMed.ate} onChange={e=>setNovoMed(p=>({...p,ate:e.target.value}))} style={{width:'100%',background:C.bg,border:'1px solid rgba(255,255,255,.15)',borderRadius:10,padding:'9px 10px',color:'#fff',fontSize:13,colorScheme:'dark'}}/></div>
-              </div>
-              <p style={{fontSize:10.5,color:'rgba(255,255,255,.35)',marginBottom:10}}>Preenchendo os horarios, o medicamento aparece todo dia na Agenda automaticamente.</p>
-              <button onClick={()=>addMedicamento(kid)} style={{width:'100%',background:`linear-gradient(135deg,${cor},${kid==='domi'?'#9d174d':'#15803d'})`,color:'#fff',border:'none',borderRadius:10,padding:'11px',fontSize:13,fontWeight:700,cursor:'pointer'}}>+ Registrar medicamento</button>
-              {(medicamentos[kid]||[]).length>0&&<div style={{marginTop:12}}>
-                {(medicamentos[kid]||[]).map((m:any,i:number)=>(<div key={i} style={{display:'flex',justifyContent:'space-between' as const,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C.line}`}}>
-                  <div><span style={{fontWeight:700,fontSize:13,color:cor}}>{m.nome}</span><span style={{fontSize:12,color:'rgba(255,255,255,.5)',marginLeft:8}}>{m.dosagem}{m.frequencia?` - ${m.frequencia}`:''}{m.horarios?` - ${m.horarios}`:''}{m.ate?` · até ${m.ate.slice(8,10)}/${m.ate.slice(5,7)}`:''}</span></div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}><span style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>{m.data}</span><button onClick={()=>delMedicamento(kid,i)} style={{background:'rgba(248,113,113,.15)',border:'none',color:C.danger,borderRadius:6,padding:'2px 7px',fontSize:11,cursor:'pointer'}}>&times;</button></div>
-                </div>))}
-              </div>}
-              {(medicamentos[kid]||[]).length===0&&<div style={{fontSize:13,color:'rgba(255,255,255,.3)',padding:'20px 0',textAlign:'center' as const}}>Nenhum medicamento registrado.</div>}
-            </Card>
-          </div>
-        </div>)
-      })()}
-    </div>}
+    {aba==='domi'&&<div>{renderCrianca('domi','Domi',C.pink,'#9d174d')}</div>}
+    {aba==='derick'&&<div>{renderCrianca('derick','Derick',C.ok,'#15803d')}</div>}
   </div>)}
 
 function Alimentacao(){
