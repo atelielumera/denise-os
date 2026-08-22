@@ -169,6 +169,19 @@ export default async function handler(req, res) {
       avisos.push(`📝 Prova ${provasProximas.some((p) => p.dias === 0) ? 'hoje' : 'chegando'}: ${detalheProvas}`)
     }
 
+    const amanhaIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(Date.now() + 86400000))
+    const consultasBrutas = d.dos_consuls || {}
+    const consultasProximas = Object.keys(consultasBrutas).flatMap((kid) =>
+      (Array.isArray(consultasBrutas[kid]) ? consultasBrutas[kid] : [])
+        .filter((c) => c.data === hojeIso || c.data === amanhaIso)
+        .map((c) => ({ crianca: kid, tipo: c.tipo, hoje: c.data === hojeIso }))
+    )
+    if (consultasProximas.length > 0 && lembraOuCobra('08:00', 21 * 60)) {
+      const nomeKidLabelConsulta = { domi: 'Domi', derick: 'Derick' }
+      const detalheConsultas = consultasProximas.map((c) => `${c.tipo} — ${nomeKidLabelConsulta[c.crianca] || c.crianca}, ${c.hoje ? 'hoje' : 'amanhã'}`).join('; ')
+      avisos.push(`🏥 Consulta médica ${consultasProximas.some((c) => c.hoje) ? 'hoje' : 'chegando'}: ${detalheConsultas}`)
+    }
+
     {
       const [{ data: aplicacoesHoje }, { data: schedRows }] = await Promise.all([
         supabase.from('tirzepatida_applications').select('person,applied_at').gte('applied_at', `${hojeIso}T00:00:00`).lte('applied_at', `${hojeIso}T23:59:59`),
