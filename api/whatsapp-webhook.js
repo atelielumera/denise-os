@@ -3,8 +3,8 @@ import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSyste
 const CASA_CATS_VALIDAS = ['Mercado', 'Doméstico', 'Manutenção', 'Contas']
 const STATUS_TRABALHO_VALIDOS = ['pendente', 'andamento', 'aguardando', 'concluído']
 
-async function processarComando(number, userText, hojeIso, supabase, d) {
-  if (!userText || !supabase) return false
+export async function processarComando(userText, hojeIso, supabase, d) {
+  if (!userText || !supabase) return null
   try {
     const diaSemanaHoje = new Date(hojeIso + 'T12:00:00-03:00').getDay()
     const rotina = Array.isArray(d.dos_rotina) ? d.dos_rotina : []
@@ -57,7 +57,7 @@ async function processarComando(number, userText, hojeIso, supabase, d) {
     const refeicaoRegistrada = parsed.refeicao && typeof parsed.refeicao.descricao === 'string' && parsed.refeicao.descricao.trim() && TIPOS_REFEICAO_VALIDOS.includes(parsed.refeicao.tipo) ? parsed.refeicao : null
 
     if (feitosRotina.length === 0 && feitosCasa.length === 0 && feitosAvalDomi.length === 0 && feitosAvalDerick.length === 0 && novosCasa.length === 0 && novosCompromissos.length === 0 && novosEventosGoogle.length === 0 && !tirzepatidaAplicada && trabalhoStatus.length === 0 && !leituraRegistrada && !treinoRegistrado && !devocionalResposta && !aguaMlAdicionada && !proteinaAvulsaG && !refeicaoRegistrada) {
-      return false
+      return null
     }
 
     const partesConfirmacao = []
@@ -201,10 +201,9 @@ async function processarComando(number, userText, hojeIso, supabase, d) {
     }
 
     await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
-    await sendWhatsappText(number, partesConfirmacao.join('\n'))
-    return true
+    return partesConfirmacao.join('\n')
   } catch {
-    return false
+    return null
   }
 }
 
@@ -278,8 +277,9 @@ export default async function handler(req, res) {
     }
 
     if (userText) {
-      const processou = await processarComando(number, userText, context.data_hoje, supabase, d)
-      if (processou) {
+      const mensagemAcao = await processarComando(userText, context.data_hoje, supabase, d)
+      if (mensagemAcao) {
+        await sendWhatsappText(number, mensagemAcao)
         res.status(200).json({ ok: true })
         return
       }
