@@ -1,4 +1,4 @@
-import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSystemPrompt, getSupabaseAdmin, insertGoogleCalendarEvento } from './_cronlib.js'
+import { sendWhatsappText, transcribeAudio, askLuna, buildLunaContext, lunaSystemPrompt, getSupabaseAdmin, insertGoogleCalendarEvento, normalizarAval } from './_cronlib.js'
 
 const CASA_CATS_VALIDAS = ['Mercado', 'Doméstico', 'Manutenção', 'Contas']
 const STATUS_TRABALHO_VALIDOS = ['pendente', 'andamento', 'aguardando', 'concluído']
@@ -18,10 +18,10 @@ export async function processarComando(userText, hojeIso, supabase, d) {
     const casaPendente = casaItens.map((it, idx) => ({ idx, nome: it.n, categoria: it.cat, done: it.done })).filter((it) => !it.done)
 
     const avals = d.dos_avals || {}
-    const avalDomi = Array.isArray(avals.domi) ? avals.domi : []
-    const avalDerick = Array.isArray(avals.derick) ? avals.derick : []
-    const avalDomiPendente = avalDomi.map((a, idx) => ({ idx, data: a.data, tipo: a.tipo })).filter((_, idx) => !avalDomi[idx].feito)
-    const avalDerickPendente = avalDerick.map((a, idx) => ({ idx, data: a.data, tipo: a.tipo })).filter((_, idx) => !avalDerick[idx].feito)
+    const avalDomi = (Array.isArray(avals.domi) ? avals.domi : []).map(normalizarAval)
+    const avalDerick = (Array.isArray(avals.derick) ? avals.derick : []).map(normalizarAval)
+    const avalDomiPendente = avalDomi.map((a, idx) => ({ idx, data: a.data, tipo: a.materia + (a.tipoAvaliacao ? ' ' + a.tipoAvaliacao : '') })).filter((_, idx) => avalDomi[idx].status !== 'realizado')
+    const avalDerickPendente = avalDerick.map((a, idx) => ({ idx, data: a.data, tipo: a.materia + (a.tipoAvaliacao ? ' ' + a.tipoAvaliacao : '') })).filter((_, idx) => avalDerick[idx].status !== 'realizado')
 
     const trabalhoTarefas = Array.isArray(d.dos_trabalho) ? d.dos_trabalho : []
     const trabalhoAbertas = trabalhoTarefas.map((t, idx) => ({ idx, tarefa: t.t, projeto: t.p, status: t.s })).filter((t) => t.status !== 'concluído')
@@ -83,11 +83,11 @@ export async function processarComando(userText, hojeIso, supabase, d) {
     if (feitosAvalDomi.length > 0 || feitosAvalDerick.length > 0) {
       const novosAvals = { ...avals }
       if (feitosAvalDomi.length > 0) {
-        novosAvals.domi = avalDomi.map((a, idx) => (feitosAvalDomi.includes(idx) ? { ...a, feito: true } : a))
+        novosAvals.domi = avalDomi.map((a, idx) => (feitosAvalDomi.includes(idx) ? { ...a, status: 'realizado' } : a))
         partesConfirmacao.push('✅ Marquei como feita a avaliação da Domi: ' + avalDomiPendente.filter((p) => feitosAvalDomi.includes(p.idx)).map((p) => p.tipo).join(', '))
       }
       if (feitosAvalDerick.length > 0) {
-        novosAvals.derick = avalDerick.map((a, idx) => (feitosAvalDerick.includes(idx) ? { ...a, feito: true } : a))
+        novosAvals.derick = avalDerick.map((a, idx) => (feitosAvalDerick.includes(idx) ? { ...a, status: 'realizado' } : a))
         partesConfirmacao.push('✅ Marquei como feita a avaliação do Derick: ' + avalDerickPendente.filter((p) => feitosAvalDerick.includes(p.idx)).map((p) => p.tipo).join(', '))
       }
       d.dos_avals = novosAvals

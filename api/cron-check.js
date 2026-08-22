@@ -1,4 +1,4 @@
-import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, buscaEfetivaFamiliaPorDia, minutosAntesStr, planoTreinoDoDia } from './_cronlib.js'
+import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, buscaEfetivaFamiliaPorDia, minutosAntesStr, planoTreinoDoDia, normalizarAval, diasRestantesAval } from './_cronlib.js'
 
 function dataIsoBR() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
@@ -145,9 +145,28 @@ export default async function handler(req, res) {
     }
 
     const casaItens = Array.isArray(d.dos_casa_items) ? d.dos_casa_items : []
-    const casaPendenteHoje = casaItens.filter((i) => !i.done)
+    const contasUrgentes = casaItens.filter((i) => i.cat === 'Contas' && !i.done && i.venc && i.venc <= hojeIso)
+    if (contasUrgentes.length > 0 && lembraOuCobra('09:00', 21 * 60)) {
+      const detalheContas = contasUrgentes.map((c) => `${c.n}${typeof c.valor === 'number' ? ` (R$ ${c.valor.toFixed(2)})` : ''}${c.venc < hojeIso ? ' — atrasada' : ' — vence hoje'}`).join(', ')
+      avisos.push(`💸 Conta(s) precisando de atenção: ${detalheContas}. Me avise quando pagar.`)
+    }
+    const idsContasUrgentes = new Set(contasUrgentes.map((i) => i.id))
+    const casaPendenteHoje = casaItens.filter((i) => !i.done && !idsContasUrgentes.has(i.id))
     if (casaPendenteHoje.length > 0 && lembraOuCobra('12:00', 21 * 60)) {
       avisos.push(`🏠 Pendente na Casa: ${casaPendenteHoje.map((i) => i.n).join(', ')}. Já fez alguma coisa? Me conta pra eu registrar.`)
+    }
+
+    const avalsBrutas = d.dos_avals || {}
+    const provasProximas = Object.keys(avalsBrutas).flatMap((kid) =>
+      (Array.isArray(avalsBrutas[kid]) ? avalsBrutas[kid] : [])
+        .map(normalizarAval)
+        .filter((a) => a.status !== 'realizado')
+        .map((a) => ({ crianca: kid, materia: a.materia, tipo: a.tipoAvaliacao, dias: diasRestantesAval(a.data) }))
+    ).filter((a) => a.dias === 0 || a.dias === 1)
+    if (provasProximas.length > 0 && lembraOuCobra('08:00', 21 * 60)) {
+      const nomeKidLabel = { domi: 'Domi', derick: 'Derick' }
+      const detalheProvas = provasProximas.map((p) => `${p.materia}${p.tipo ? ` (${p.tipo})` : ''} — ${nomeKidLabel[p.crianca] || p.crianca}, ${p.dias === 0 ? 'hoje' : 'amanhã'}`).join('; ')
+      avisos.push(`📝 Prova ${provasProximas.some((p) => p.dias === 0) ? 'hoje' : 'chegando'}: ${detalheProvas}`)
     }
 
     {

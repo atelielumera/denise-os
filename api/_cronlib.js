@@ -60,6 +60,22 @@ export function planoTreinoDoDia(d, diaSemana) {
   return plano[diaSemana] || null
 }
 
+export function normalizarAval(a) {
+  if (a && a.status) return a
+  const origTipo = a?.tipo || ''
+  const tipoDetectado = /recupera/i.test(origTipo) ? 'Recuperação' : /AV1/.test(origTipo) ? 'AV1' : /AV2/.test(origTipo) ? 'AV2' : /AV3/.test(origTipo) ? 'AV3' : 'Outros'
+  return { data: a?.data || '', materia: origTipo, tipoAvaliacao: tipoDetectado, conteudo: a?.obs || '', status: a?.feito ? 'realizado' : 'nao_iniciado' }
+}
+
+export function diasRestantesAval(dataDDMM) {
+  const partes = (dataDDMM || '').split('/')
+  if (partes.length < 2) return null
+  const ano = new Date().getFullYear()
+  const d = new Date(`${ano}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}T12:00:00-03:00`)
+  if (isNaN(d.getTime())) return null
+  return Math.ceil((d.getTime() - Date.now()) / 86400000)
+}
+
 export function getEvoConfig() {
   const baseUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '')
   const apiKey = process.env.EVOLUTION_API_KEY
@@ -297,6 +313,14 @@ export async function buildLunaContext() {
     derick: (() => { const e = buscaEfetivaFamiliaPorDia(d, 'derick', hojeIso, diaSemanaHoje); return (e.semAula || !e.horario) ? null : { busca: e.horario, sair: minutosAntesStr(e.horario, 15), responsavel: e.responsavel } })()
   }
 
+  const avalsBrutas = d.dos_avals || {}
+  const provasEscolaresProximas = Object.keys(avalsBrutas).flatMap((kid) =>
+    (Array.isArray(avalsBrutas[kid]) ? avalsBrutas[kid] : [])
+      .map(normalizarAval)
+      .filter((a) => a.status !== 'realizado')
+      .map((a) => ({ crianca: kid, materia: a.materia, tipo: a.tipoAvaliacao, dias_restantes: diasRestantesAval(a.data) }))
+  ).filter((a) => a.dias_restantes !== null && a.dias_restantes >= 0).sort((a, b) => a.dias_restantes - b.dias_restantes)
+
   return {
     data_hoje: hojeIso,
     agua_hoje_ml: aguaHojeMl,
@@ -333,6 +357,7 @@ export async function buildLunaContext() {
       return comDias
     })(),
     trabalho_tarefas: d.dos_trabalho || [],
+    provas_escolares_proximas: provasEscolaresProximas,
     treinos_recentes: treinos.slice(0, 10),
     leituras_recentes: leituras.slice(0, 10)
   }
