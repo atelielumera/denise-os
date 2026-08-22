@@ -113,15 +113,21 @@ async function processarComando(number, userText, hojeIso, supabase, d) {
 
     if (tirzepatidaAplicada) {
       try {
-        const { data: schedRow } = await supabase.from('tirzepatida_schedule').select('planned_dose_mg').eq('person', tirzepatidaAplicada.pessoa).maybeSingle()
-        const doseMg = Number(schedRow?.planned_dose_mg || 0)
-        if (doseMg > 0) {
-          const appliedAt = new Date().toISOString()
-          const { error } = await supabase.rpc('tirze_apply_dose', { p_person: tirzepatidaAplicada.pessoa, p_applied_at: appliedAt, p_dose_mg: doseMg })
-          if (!error) {
-            const { data: bal } = await supabase.from('tirzepatida_stock_balance').select('*').maybeSingle()
-            const quem = tirzepatidaAplicada.pessoa === 'denise' ? 'sua' : 'do Flávio'
-            partesConfirmacao.push(`💉 Registrei a aplicação ${quem} (${doseMg}mg). Estoque atualizado: ${Number(bal?.current_balance_mg ?? 0)}mg restantes.`)
+        const { data: jaHoje } = await supabase.from('tirzepatida_applications').select('id').eq('person', tirzepatidaAplicada.pessoa).gte('applied_at', `${hojeIso}T00:00:00`).lte('applied_at', `${hojeIso}T23:59:59`).maybeSingle()
+        if (jaHoje) {
+          const quemJa = tirzepatidaAplicada.pessoa === 'denise' ? 'Sua aplicação' : 'A aplicação do Flávio'
+          partesConfirmacao.push(`💉 ${quemJa} de hoje já estava registrada — não registrei de novo pra não duplicar no estoque.`)
+        } else {
+          const { data: schedRow } = await supabase.from('tirzepatida_schedule').select('planned_dose_mg').eq('person', tirzepatidaAplicada.pessoa).maybeSingle()
+          const doseMg = Number(schedRow?.planned_dose_mg || 0)
+          if (doseMg > 0) {
+            const appliedAt = new Date().toISOString()
+            const { error } = await supabase.rpc('tirze_apply_dose', { p_person: tirzepatidaAplicada.pessoa, p_applied_at: appliedAt, p_dose_mg: doseMg })
+            if (!error) {
+              const { data: bal } = await supabase.from('tirzepatida_stock_balance').select('*').maybeSingle()
+              const quem = tirzepatidaAplicada.pessoa === 'denise' ? 'sua' : 'do Flávio'
+              partesConfirmacao.push(`💉 Registrei a aplicação ${quem} (${doseMg}mg). Estoque atualizado: ${Number(bal?.current_balance_mg ?? 0)}mg restantes.`)
+            }
           }
         }
       } catch { /* nao bloqueia o resto */ }

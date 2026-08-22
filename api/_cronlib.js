@@ -24,8 +24,41 @@ export function horaLocalBR(dataISO) {
 
 const GOOGLE_CLIENT_ID = '386247436984-g828bjjges33iherifnlbk18cfe0u1mj.apps.googleusercontent.com'
 
-export const BUSCA_DOMI_POR_DIA = { 1: { busca: '12:50', sair: '12:35' }, 2: { busca: '11:40', sair: '11:25' }, 3: { busca: '12:50', sair: '12:35' }, 4: { busca: '11:40', sair: '11:25' }, 5: { busca: '13:00', sair: '12:45' } }
-export const PLANO_TREINO_SEMANA = { 0: null, 1: 'Calistenia', 2: 'Caminhada', 3: 'Calistenia', 4: 'Caminhada', 5: 'Calistenia', 6: 'Mobilidade' }
+const FAM_PADRAO = {
+  domi: { dropOff: '07:00', pk: { 1: '12:50', 2: '11:40', 3: '12:50', 4: '11:40', 5: '13:00' }, entrada: '07:00', responsavel: 'denise' },
+  derick: { dropOff: '07:00', pk: { 1: '17:00', 2: '17:00', 3: '17:00', 4: '17:00', 5: '17:00' }, entrada: '07:00', responsavel: 'flavio' }
+}
+
+export function buscaEfetivaFamiliaPorDia(d, kid, iso, diaSemana) {
+  const fam = (d.dos_fam && d.dos_fam[kid]) || FAM_PADRAO[kid]
+  const excecao = (d.dos_fam_excecoes && d.dos_fam_excecoes[iso] && d.dos_fam_excecoes[iso][kid]) || null
+  return {
+    horario: excecao?.horarioBusca || (fam.pk || {})[diaSemana] || null,
+    responsavel: excecao?.responsavel || fam.responsavel || FAM_PADRAO[kid].responsavel,
+    semAula: !!excecao?.semAula
+  }
+}
+
+export function minutosAntesStr(hhmm, minutosAntes) {
+  const partes = String(hhmm || '').split(':').map(Number)
+  const total = ((partes[0] || 0) * 60 + (partes[1] || 0) - minutosAntes + 1440) % 1440
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+const PLANO_TREINO_PADRAO = [
+  { tipo: 'Descanso', nome: 'Descanso', descanso: true },
+  { tipo: 'Calistenia', nome: 'Calistenia', duracaoMin: 30, descanso: false },
+  { tipo: 'Caminhada', nome: 'Caminhada', duracaoMin: 45, descanso: false },
+  { tipo: 'Calistenia', nome: 'Calistenia', duracaoMin: 30, descanso: false },
+  { tipo: 'Caminhada', nome: 'Caminhada', duracaoMin: 45, descanso: false },
+  { tipo: 'Calistenia', nome: 'Calistenia', duracaoMin: 30, descanso: false },
+  { tipo: 'Mobilidade', nome: 'Mobilidade', duracaoMin: 20, descanso: false }
+]
+
+export function planoTreinoDoDia(d, diaSemana) {
+  const plano = Array.isArray(d.dos_plano_treino) && d.dos_plano_treino.length === 7 ? d.dos_plano_treino : PLANO_TREINO_PADRAO
+  return plano[diaSemana] || null
+}
 
 export function getEvoConfig() {
   const baseUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '')
@@ -259,7 +292,10 @@ export async function buildLunaContext() {
   })
 
   const diaSemanaHoje = new Date(hojeIso + 'T12:00:00-03:00').getDay()
-  const buscaDomiHoje = BUSCA_DOMI_POR_DIA[diaSemanaHoje] || null
+  const buscaEscolaHoje = {
+    domi: (() => { const e = buscaEfetivaFamiliaPorDia(d, 'domi', hojeIso, diaSemanaHoje); return (e.semAula || !e.horario) ? null : { busca: e.horario, sair: minutosAntesStr(e.horario, 15), responsavel: e.responsavel } })(),
+    derick: (() => { const e = buscaEfetivaFamiliaPorDia(d, 'derick', hojeIso, diaSemanaHoje); return (e.semAula || !e.horario) ? null : { busca: e.horario, sair: minutosAntesStr(e.horario, 15), responsavel: e.responsavel } })()
+  }
 
   return {
     data_hoje: hojeIso,
@@ -270,7 +306,7 @@ export async function buildLunaContext() {
     refeicoes_hoje: refeicoesHoje.map(mapRefeicaoContexto),
     refeicoes_ontem: refeicoesOntemLuna.map(mapRefeicaoContexto),
     resumo_alimentacao_7dias: resumoAlimentacao7dias,
-    busca_domi_hoje: buscaDomiHoje,
+    busca_escola_hoje: buscaEscolaHoje,
     ultima_sincronizacao_do_app: snap?.data ? d.__updated_at || null : null,
     tirzepatida: Object.keys(tzMap).length > 0 ? { estoque_atual_mg: Number(bal?.current_balance_mg ?? 0), denise: tzMap.denise || null, flavio: tzMap.flavio || null } : null,
     sequencia_treinos_dias: sequencia(diasUnicos(treinos)),

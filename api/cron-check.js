@@ -1,4 +1,4 @@
-import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, BUSCA_DOMI_POR_DIA, PLANO_TREINO_SEMANA } from './_cronlib.js'
+import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, buscaEfetivaFamiliaPorDia, minutosAntesStr, planoTreinoDoDia } from './_cronlib.js'
 
 function dataIsoBR() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
@@ -110,10 +110,15 @@ export default async function handler(req, res) {
       else if (estaNaJanelaAntecedencia(hora, 60)) avisos.push(`⏳ Em 1h: ${hora} · ${titulo} (Google Agenda)`)
     })
 
-    const buscaDomiHoje = BUSCA_DOMI_POR_DIA[diaSemanaHoje]
-    if (buscaDomiHoje && estaNaJanela(buscaDomiHoje.sair)) {
-      avisos.push(`🚗 Sair agora para buscar a Domi (sai da escola às ${buscaDomiHoje.busca})`)
-    }
+    ;['domi', 'derick'].forEach((kid) => {
+      const efet = buscaEfetivaFamiliaPorDia(d, kid, hojeIso, diaSemanaHoje)
+      if (efet.semAula || !efet.horario || efet.responsavel !== 'denise') return
+      const horaSair = minutosAntesStr(efet.horario, 15)
+      if (estaNaJanela(horaSair)) {
+        const nomeKid = kid === 'domi' ? 'Domi' : 'Derick'
+        avisos.push(`🚗 Sair agora para buscar a ${nomeKid} (sai da escola às ${efet.horario})`)
+      }
+    })
 
     const META_AGUA_ML = Number(d.dos_meta_agua_ml || 2500)
     const aguaLog = d.dos_agua_log || {}
@@ -124,11 +129,11 @@ export default async function handler(req, res) {
       avisos.push(`💧 Hidratação — ${aguaHojeMl} ml de ${META_AGUA_ML} ml hoje (água, chimarrão, suco, água com gás contam)`)
     }
 
-    const treinoTipoHoje = PLANO_TREINO_SEMANA[diaSemanaHoje]
+    const planoTreinoHoje = planoTreinoDoDia(d, diaSemanaHoje)
     const treinos = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
     const treinoRegistradoHoje = treinos.some((t) => t.data === hojeIso) || d[`dos_treino_registrado_${hojeIso}`]
-    if (treinoTipoHoje && !treinoRegistradoHoje && lembraOuCobra('12:00', 21 * 60 + 30)) {
-      avisos.push(`🏋️ Treino de hoje (${treinoTipoHoje}) — já fez ou não? Me conta pra eu registrar.`)
+    if (planoTreinoHoje && !planoTreinoHoje.descanso && !treinoRegistradoHoje && lembraOuCobra('12:00', 21 * 60 + 30)) {
+      avisos.push(`🏋️ Treino de hoje (${planoTreinoHoje.nome}) — já fez ou não? Me conta pra eu registrar.`)
     }
 
     const leituras = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
@@ -145,15 +150,16 @@ export default async function handler(req, res) {
       avisos.push(`🏠 Pendente na Casa: ${casaPendenteHoje.map((i) => i.n).join(', ')}. Já fez alguma coisa? Me conta pra eu registrar.`)
     }
 
-    if (diaSemanaHoje === 4) {
+    {
       const [{ data: aplicacoesHoje }, { data: schedRows }] = await Promise.all([
         supabase.from('tirzepatida_applications').select('person,applied_at').gte('applied_at', `${hojeIso}T00:00:00`).lte('applied_at', `${hojeIso}T23:59:59`),
-        supabase.from('tirzepatida_schedule').select('person,planned_dose_mg')
+        supabase.from('tirzepatida_schedule').select('person,planned_dose_mg,next_application_date')
       ])
       const jaAplicou = new Set((aplicacoesHoje || []).map((a) => a.person))
       const doses = {}
-      ;(schedRows || []).forEach((r) => { doses[r.person] = r.planned_dose_mg })
-      const pendentes = ['denise', 'flavio'].filter((p) => !jaAplicou.has(p) && doses[p])
+      const proximaData = {}
+      ;(schedRows || []).forEach((r) => { doses[r.person] = r.planned_dose_mg; proximaData[r.person] = r.next_application_date })
+      const pendentes = ['denise', 'flavio'].filter((p) => !jaAplicou.has(p) && doses[p] && proximaData[p] === hojeIso)
       if (pendentes.length > 0 && lembraOuCobra('09:00', 21 * 60)) {
         const nomes = pendentes.map((p) => `${p === 'denise' ? 'sua' : 'do Flávio'} (${doses[p]}mg)`).join(' e ')
         avisos.push(`💉 Hoje é dia de aplicar a tirzepatida — falta registrar a aplicação ${nomes}. Me avise quando aplicar.`)
