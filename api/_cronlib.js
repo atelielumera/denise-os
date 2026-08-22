@@ -76,6 +76,15 @@ export function diasRestantesAval(dataDDMM) {
   return Math.ceil((d.getTime() - Date.now()) / 86400000)
 }
 
+export function calcularAutonomiaTirzepatida(tzMap, saldoMg) {
+  const mgDia = ['denise', 'flavio'].reduce((soma, pessoa) => {
+    const sched = tzMap[pessoa]
+    if (!sched || !sched.planned_dose_mg || !sched.interval_days) return soma
+    return soma + sched.planned_dose_mg / sched.interval_days
+  }, 0)
+  return mgDia > 0 ? Math.floor(saldoMg / mgDia) : null
+}
+
 export function getEvoConfig() {
   const baseUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '')
   const apiKey = process.env.EVOLUTION_API_KEY
@@ -332,7 +341,7 @@ export async function buildLunaContext() {
     resumo_alimentacao_7dias: resumoAlimentacao7dias,
     busca_escola_hoje: buscaEscolaHoje,
     ultima_sincronizacao_do_app: snap?.data ? d.__updated_at || null : null,
-    tirzepatida: Object.keys(tzMap).length > 0 ? { estoque_atual_mg: Number(bal?.current_balance_mg ?? 0), denise: tzMap.denise || null, flavio: tzMap.flavio || null } : null,
+    tirzepatida: Object.keys(tzMap).length > 0 ? { estoque_atual_mg: Number(bal?.current_balance_mg ?? 0), denise: tzMap.denise || null, flavio: tzMap.flavio || null, autonomia_dias: calcularAutonomiaTirzepatida(tzMap, Number(bal?.current_balance_mg ?? 0)) } : null,
     sequencia_treinos_dias: sequencia(diasUnicos(treinos)),
     sequencia_leitura_dias: sequencia(diasUnicos(leituras)),
     sequencia_devocional_dias: sequencia(diasUnicos(devocionais)),

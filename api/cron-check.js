@@ -1,4 +1,4 @@
-import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, buscaEfetivaFamiliaPorDia, minutosAntesStr, planoTreinoDoDia, normalizarAval, diasRestantesAval } from './_cronlib.js'
+import { verificarCron, getDeniseNumber, sendWhatsappText, getSupabaseAdmin, fetchGoogleCalendarEventos, horaLocalBR, buscaEfetivaFamiliaPorDia, minutosAntesStr, planoTreinoDoDia, normalizarAval, diasRestantesAval, calcularAutonomiaTirzepatida } from './_cronlib.js'
 
 function dataIsoBR() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
@@ -182,6 +182,20 @@ export default async function handler(req, res) {
       if (pendentes.length > 0 && lembraOuCobra('09:00', 21 * 60)) {
         const nomes = pendentes.map((p) => `${p === 'denise' ? 'sua' : 'do Flávio'} (${doses[p]}mg)`).join(' e ')
         avisos.push(`💉 Hoje é dia de aplicar a tirzepatida — falta registrar a aplicação ${nomes}. Me avise quando aplicar.`)
+      }
+    }
+
+    {
+      const [{ data: tzSchedRows }, { data: tzBal }] = await Promise.all([
+        supabase.from('tirzepatida_schedule').select('person,planned_dose_mg,interval_days'),
+        supabase.from('tirzepatida_stock_balance').select('current_balance_mg').maybeSingle()
+      ])
+      const tzMap = {}
+      ;(tzSchedRows || []).forEach((r) => { tzMap[r.person] = { planned_dose_mg: r.planned_dose_mg, interval_days: r.interval_days } })
+      const saldoAtualMg = Number(tzBal?.current_balance_mg ?? 0)
+      const autonomiaDias = calcularAutonomiaTirzepatida(tzMap, saldoAtualMg)
+      if (autonomiaDias !== null && autonomiaDias <= 7 && estaNaJanela('10:00')) {
+        avisos.push(`📦 Estoque de tirzepatida acabando: dá pra ~${autonomiaDias} dia${autonomiaDias === 1 ? '' : 's'} no ritmo atual (${saldoAtualMg}mg restantes). Bom repor.`)
       }
     }
 
