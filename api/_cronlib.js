@@ -85,6 +85,19 @@ export function calcularAutonomiaTirzepatida(tzMap, saldoMg) {
   return mgDia > 0 ? Math.floor(saldoMg / mgDia) : null
 }
 
+export async function detectarBoleto(base64, mediaType) {
+  const prompt = 'Essa imagem e um boleto, conta ou fatura (agua, luz, internet, cartao, mensalidade, condominio, etc)? Responda APENAS com um JSON, nada mais, sem comentario. Se for boleto/conta: {"eh_boleto":true,"nome":"descricao curta, ex: Conta de luz","valor":numero em reais sem simbolo ou null se nao aparecer,"vencimento":"YYYY-MM-DD ou null se nao aparecer"}. Se nao for um boleto/conta: {"eh_boleto":false}.'
+  let resposta = ''
+  try {
+    resposta = await askLuna(prompt, [{ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } }, { type: 'text', text: 'Analise a imagem.' }])
+  } catch {
+    return { eh_boleto: false }
+  }
+  const match = resposta.match(/\{[\s\S]*\}/)
+  if (!match) return { eh_boleto: false }
+  try { return JSON.parse(match[0]) } catch { return { eh_boleto: false } }
+}
+
 export function getEvoConfig() {
   const baseUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '')
   const apiKey = process.env.EVOLUTION_API_KEY
