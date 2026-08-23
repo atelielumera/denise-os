@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, NavLink, Outlet, Navigate, useNavigate } 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import { supabase } from './lib/supabase'
+import { NOME_RESPONSAVEL_PADRAO, FAMILIA_PADRAO, ROTINA_PADRAO, LOCALIZACAO_PADRAO } from './config'
 
 const qc=new QueryClient()
 const C={bg:'#0a0a0f',s:'#16161f',s2:'#1c1c28',s3:'#22222f',line:'rgba(255,255,255,.07)',acc:'#8b5cf6',acc2:'#a78bfa',ok:'#34d399',water:'#38bdf8',warn:'#fbbf24',danger:'#f87171',pink:'#f472b6',teal:'#2dd4bf'}
@@ -104,7 +105,7 @@ const PhotoCtx=React.createContext<{photos:Record<string,string>,setPhoto:(k:str
 function PhotoProvider({children}:{children:React.ReactNode}){const [photos,setPhotos]=React.useState<Record<string,string>>(()=>{try{return JSON.parse(localStorage.getItem('dos_photos')||'{}')}catch{return {}}});const setPhoto=(k:string,v:string)=>setPhotos(p=>{const n={...p,[k]:v};localStorage.setItem('dos_photos',JSON.stringify(n));return n});return <PhotoCtx.Provider value={{photos,setPhoto}}>{children}</PhotoCtx.Provider>}
 function Avatar({id,label,size=40,radius=12}:{id:string,label:string,size?:number,radius?:number}){const {photos,setPhoto}=React.useContext(PhotoCtx);const ref=React.useRef<HTMLInputElement>(null);return(<><div onClick={()=>ref.current?.click()} style={{width:size,height:size,borderRadius:radius,background:photos[id]?'transparent':'linear-gradient(145deg,#f0abfc,#8b5cf6)',backgroundImage:photos[id]?`url(${photos[id]})`:'',backgroundSize:'cover',backgroundPosition:'center',display:'grid',placeItems:'center',fontWeight:800,color:'#fff',fontSize:size*0.38,cursor:'pointer',flexShrink:0}}>{!photos[id]&&label}</div><input ref={ref} type="file" accept="image/*" style={{display:'none'}} onChange={e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>setPhoto(id,r.result as string);r.readAsDataURL(f);e.target.value=''}}/></>)}
 type FamData={dropOff:string,pk:{[k:number]:string},entrada?:string,responsavel?:string}
-const defaultFam:Record<string,FamData>={domi:{dropOff:'07:00',pk:{1:'12:50',2:'11:40',3:'12:50',4:'11:40',5:'13:00'},entrada:'07:00',responsavel:'denise'},derick:{dropOff:'07:00',pk:{1:'17:00',2:'17:00',3:'17:00',4:'17:00',5:'17:00'},entrada:'07:00',responsavel:'flavio'}}
+const defaultFam:Record<string,FamData>=FAMILIA_PADRAO as Record<string,FamData>
 type ExcecaoFam={responsavel?:string,semAula?:boolean,horarioBusca?:string}
 function lerExcecoesFam():Record<string,Record<string,ExcecaoFam>>{
   try{return JSON.parse(localStorage.getItem('dos_fam_excecoes')||'{}')}catch{return {}}
@@ -128,7 +129,7 @@ function buscaEfetivaFam(fam:Record<string,FamData>,kid:'domi'|'derick',iso:stri
     semAula:!!exc?.semAula,
   }
 }
-const NOME_RESPONSAVEL:Record<string,string>={denise:'Denise',flavio:'Flávio'}
+const NOME_RESPONSAVEL:Record<string,string>=NOME_RESPONSAVEL_PADRAO
 type Aval={data:string,materia:string,tipoAvaliacao:string,conteudo:string,peso?:string,observacao?:string,status:'nao_iniciado'|'estudando'|'revisado'|'pronto'|'realizado'}
 function migrarAval(a:any):Aval{
   if(a&&a.status)return a as Aval
@@ -215,7 +216,7 @@ function Shell(){
       document.removeEventListener('visibilitychange',sincronizarSeEscondeu)
     }
   },[])
-  const ROTINA_DEF_SHELL=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
+  const ROTINA_DEF_SHELL=ROTINA_PADRAO
   const rotinaItensShell=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||ROTINA_DEF_SHELL}catch{return ROTINA_DEF_SHELL}})() as any[]
   function diasUnicosShell(entries:any[]){return new Set(entries.map((e:any)=>e.data))}
   function sequenciaShell(dias:Set<string>){
@@ -261,7 +262,7 @@ function Home(){const navigate=useNavigate();
   const [tzApps,setTzApps]=React.useState<any[]>([])
   const [climaTemp,setClimaTemp]=React.useState<number|null>(null)
   React.useEffect(()=>{
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=-23.55&longitude=-46.63&current=temperature_2m&timezone=America%2FSao_Paulo')
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LOCALIZACAO_PADRAO.latitude}&longitude=${LOCALIZACAO_PADRAO.longitude}&current=temperature_2m&timezone=America%2FSao_Paulo`)
       .then(r=>r.json())
       .then(d=>{const t=d?.current?.temperature_2m;if(typeof t==='number')setClimaTemp(Math.round(t))})
       .catch(()=>{})
@@ -293,7 +294,7 @@ function Home(){const navigate=useNavigate();
   const metaAguaHome=Number(localStorage.getItem('dos_meta_agua_ml')||2500)
   const hojeIsoHome=isoBR(new Date())
   type RItemHome={t:string,n:string,cat:string,dias?:number[]}
-  const ROTINA_DEF_HOME:RItemHome[]=[{t:'05:30',n:'Devocional',cat:'Espiritual'},{t:'06:00',n:'Acordar · água · humor',cat:'Saúde'},{t:'06:30',n:'Café · whey · creatina',cat:'Alimentação'},{t:'07:00',n:'Levar crianças à escola',cat:'Família'},{t:'07:30',n:'Calistenia',cat:'Exercícios'},{t:'08:20',n:'Banho · skincare',cat:'Casa'},{t:'08:45',n:'Planejar o dia · prioridades',cat:'Trabalho'},{t:'09:30',n:'Lanche da manhã',cat:'Alimentação'},{t:'12:50',n:'Buscar Domi',cat:'Família'},{t:'15:30',n:'Whey da tarde',cat:'Alimentação'},{t:'17:00',n:'Buscar Derick',cat:'Família'},{t:'19:00',n:'Jantar',cat:'Alimentação'},{t:'20:00',n:'Célula (Qua) / Aula (Sex)',cat:'Compromisso'},{t:'21:30',n:'Probióticos',cat:'Saúde'},{t:'22:00',n:'Leitura · 20 min',cat:'Desenvolvimento'}]
+  const ROTINA_DEF_HOME:RItemHome[]=ROTINA_PADRAO as RItemHome[]
   const rotinaItens=(()=>{try{return JSON.parse(localStorage.getItem('dos_rotina')||'null')||ROTINA_DEF_HOME}catch{return ROTINA_DEF_HOME}})() as RItemHome[]
   const rotinaDiaKeyHome=`dos_rotina_done_${hojeIsoHome}`
   const rotinaDoneIdx=new Set<number>((()=>{try{return JSON.parse(localStorage.getItem(rotinaDiaKeyHome)||'[]')}catch{return []}})())
@@ -2016,56 +2017,6 @@ function Saude(){
   const pesoAtualF=extrasF[0].peso
   const [medicamentos,setMedicamentos]=React.useState<Record<string,any[]>>(()=>{try{return JSON.parse(localStorage.getItem('dos_medicamentos')||'{}')}catch{return {}}})
   const [novoMed,setNovoMed]=React.useState({nome:'',dosagem:'',frequencia:'',horarios:'',ate:''})
-  React.useEffect(()=>{
-    // Substitui o registro unico/errado do Derick pelos dados da referencia.
-    // Roda so 1 vez (marcador dos_derick_seed_v1) pra nao sobrescrever o que
-    // voce registrar depois disso.
-    if(localStorage.getItem('dos_derick_seed_v1'))return
-    const criancasSeed={...criancas,derick:[
-      {data:'20/08',peso:16.75,altura:1.09,obs:'Tudo bem'},
-      {data:'20/07',peso:16.55,altura:1.08,obs:'Check-up mensal'},
-      {data:'20/06',peso:16.10,altura:1.07,obs:''},
-      {data:'20/05',peso:15.90,altura:1.06,obs:''},
-    ]}
-    setCriancas(criancasSeed);localStorage.setItem('dos_criancas',JSON.stringify(criancasSeed))
-    const consulsSeed={...consuls,derick:[
-      {tipo:'Pediatria',data:'2026-08-27',obs:'',proximo:''},
-      {tipo:'Otorrino',data:'2026-06-12',obs:'',proximo:''},
-      {tipo:'Pediatria',data:'2026-05-12',obs:'',proximo:''},
-    ]}
-    setConsuls(consulsSeed);localStorage.setItem('dos_consuls',JSON.stringify(consulsSeed))
-    const medicamentosSeed={...medicamentos,derick:[
-      {data:'21/08',nome:'Xarope infantil',dosagem:'5ml',frequencia:'2x ao dia',horarios:'08:00 e 20:00',ate:''},
-    ]}
-    setMedicamentos(medicamentosSeed);localStorage.setItem('dos_medicamentos',JSON.stringify(medicamentosSeed))
-    const tamanhosSeed={...tamanhos,derick:{roupa:'4',calcado:'26',camiseta:'4',calca:'4',atualizadoEm:'29/07'}}
-    setTamanhos(tamanhosSeed);localStorage.setItem('dos_tamanhos',JSON.stringify(tamanhosSeed))
-    localStorage.setItem('dos_derick_seed_v1','1')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[])
-  React.useEffect(()=>{
-    if((criancas.domi||[]).length>0)return
-    const criancasSeed={...criancas,domi:[
-      {data:'20/08',peso:34.20,altura:1.32,obs:'Tudo bem'},
-      {data:'20/07',peso:33.90,altura:1.315,obs:'Check-up mensal'},
-      {data:'20/06',peso:33.40,altura:1.310,obs:''},
-      {data:'20/05',peso:32.80,altura:1.300,obs:''},
-    ]}
-    setCriancas(criancasSeed);localStorage.setItem('dos_criancas',JSON.stringify(criancasSeed))
-    const consulsSeed={...consuls,domi:[
-      {tipo:'Pediatria',data:'2026-08-27',obs:'',proximo:''},
-      {tipo:'Dermatologia',data:'2026-07-10',obs:'',proximo:''},
-      {tipo:'Pediatria',data:'2026-05-10',obs:'',proximo:''},
-    ]}
-    setConsuls(consulsSeed);localStorage.setItem('dos_consuls',JSON.stringify(consulsSeed))
-    const medicamentosSeed={...medicamentos,domi:[
-      {data:'21/08',nome:'Vitamina D',dosagem:'2 gotas',frequencia:'1x ao dia',horarios:'07:00',ate:''},
-    ]}
-    setMedicamentos(medicamentosSeed);localStorage.setItem('dos_medicamentos',JSON.stringify(medicamentosSeed))
-    const tamanhosSeed={...tamanhos,domi:{roupa:'10',calcado:'33',camiseta:'10',calca:'10',atualizadoEm:'29/07'}}
-    setTamanhos(tamanhosSeed);localStorage.setItem('dos_tamanhos',JSON.stringify(tamanhosSeed))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[])
   function addMedicamento(kid:string){
     if(!novoMed.nome||!novoMed.dosagem)return
     const reg={data:new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),nome:novoMed.nome,dosagem:novoMed.dosagem,frequencia:novoMed.frequencia,horarios:novoMed.horarios,ate:novoMed.ate}
@@ -3214,31 +3165,6 @@ function Familia(){
   const [avals,setAvals]=React.useState<Record<string,Aval[]>>(()=>{
     try{
       const stored=JSON.parse(localStorage.getItem('dos_avals')||'{}')
-      if(!stored.domi||stored.domi.length===0){
-        stored.domi=[
-          {data:'11/08',tipo:'📝 Prod. Textual AV1',obs:'Poema de Cordel · peso 10',feito:false},
-          {data:'12/08',tipo:'🔬 Ciências AV1',obs:'Mapa mental Sistema Urinário · peso 10',feito:false},
-          {data:'14/08',tipo:'🔢 Matemática AV1',obs:'Números decimais · peso 10',feito:false},
-          {data:'17/08',tipo:'📖 Português AV1',obs:'Caps 8 e 9 · peso 10',feito:false},
-          {data:'17/08',tipo:'🎵 Música AV1',obs:'Parâmetros sonoros · págs 57-60 · peso 10',feito:false},
-          {data:'17/08',tipo:'⚽ Ed. Física AV1',obs:'Importância da Atividade Física · peso 10',feito:false},
-          {data:'18/08',tipo:'🇬🇧 Inglês AV1',obs:'Routine págs 44-48 · peso 10',feito:false},
-          {data:'18/08',tipo:'🎨 Arte AV1',obs:'Colagem figuras geométricas · peso 10',feito:false},
-          {data:'19/08',tipo:'📜 História AV1',obs:'Símbolos nacionais · Agência Publicidade · peso 10',feito:false},
-          {data:'01/09',tipo:'🔢 Matemática AV3',obs:'Números decimais · lista exercícios · peso 10',feito:false},
-          {data:'02/09',tipo:'📖 Português AV3',obs:'Notícia do dia que nasceu · apresentação · peso 10',feito:false},
-          {data:'11/09',tipo:'📝 Prod. Textual AV2',obs:'Nossa Turma em Cordel · poema · peso 10',feito:false},
-          {data:'14/09',tipo:'📜 História AV2',obs:'Caps 8 e 9 · apostila págs 78-92 · peso 10',feito:false},
-          {data:'16/09',tipo:'🔬 Ciências AV2',obs:'Sistema Urinário + Nervoso · págs 129-148 · peso 10',feito:false},
-          {data:'17/09',tipo:'📖 Português AV2',obs:'Cordel, rimas, parônimas, conjunções · peso 10',feito:false},
-          {data:'18/09',tipo:'🌍 Geografia AV2',obs:'Indústria e Trabalho · caps 8 e 9 · peso 10',feito:false},
-          {data:'21/09',tipo:'🔄 Recuperação Prod. Textual',obs:'',feito:false},
-          {data:'22/09',tipo:'🔄 Recuperação Português',obs:'',feito:false},
-          {data:'28/09',tipo:'🔄 Recuperação Matemática',obs:'',feito:false},
-          {data:'29/09',tipo:'🔄 Recuperação Ciências',obs:'',feito:false},
-          {data:'30/09',tipo:'🔄 Recuperação História/Geografia',obs:'',feito:false},
-        ]
-      }
       const migrado:Record<string,Aval[]>={}
       Object.keys(stored).forEach(k=>{migrado[k]=(stored[k]||[]).map(migrarAval)})
       return migrado
