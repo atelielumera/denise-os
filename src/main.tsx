@@ -5523,9 +5523,15 @@ function Config(){
       const resp=await fetch('/api/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'connect'})})
       const data=await resp.json()
       if(!resp.ok)throw new Error(data?.error||'Erro ao conectar.')
-      setWaQr(data.base64||null)
-      setWaPairingCode(data.pairingCode||null)
-      setWaState('connecting')
+      if(!data.base64&&!data.pairingCode){
+        setWaQr(null);setWaPairingCode(null)
+        setWaErro(data.message||'Não veio um QR novo agora. Verificando o status atual...')
+        await verificarStatusWhatsapp()
+      }else{
+        setWaQr(data.base64||null)
+        setWaPairingCode(data.pairingCode||null)
+        setWaState('connecting')
+      }
     }catch(err:any){setWaErro(err?.message||'Erro ao conectar.')}
     setWaLoading(false)
   }
@@ -5691,11 +5697,12 @@ function Config(){
           <div><div style={{fontSize:13,fontWeight:600}}>WhatsApp (Luna)</div><div style={{fontSize:11,color:'rgba(255,255,255,.35)'}}>{waState==='open'?'Conectado':waState==='carregando'?'Verificando...':'Não conectado'}</div></div>
           <span style={{fontSize:11,fontWeight:700,color:waState==='open'?C.ok:'rgba(255,255,255,.4)',background:waState==='open'?'rgba(52,211,153,.12)':'rgba(255,255,255,.06)',padding:'3px 9px',borderRadius:20}}>{waState==='open'?'Conectado':waState==='carregando'?'Verificando':'Em breve'}</span>
         </div>
-        {waState==='open'?null:(waState==='carregando'?null:<div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
+        {waState==='carregando'?null:<div style={{padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
+          {waState==='open'&&<button onClick={conectarWhatsapp} disabled={waLoading} style={{background:'none',border:`1px solid ${C.line}`,color:'rgba(255,255,255,.6)',borderRadius:9,padding:'6px 12px',fontSize:11.5,fontWeight:600,cursor:'pointer',opacity:waLoading?.6:1}}>{waLoading?'Verificando...':'Reconectar (gerar novo QR Code)'}</button>}
           {(waState==='close'||waState==='nao_criada'||waState==='erro')&&<button onClick={conectarWhatsapp} disabled={waLoading} style={{background:`linear-gradient(135deg,${C.acc},#7c3aed)`,color:'#fff',border:'none',borderRadius:9,padding:'8px 14px',fontSize:12,fontWeight:700,cursor:'pointer',opacity:waLoading?.6:1}}>{waLoading?'Gerando QR Code...':'Gerar QR Code'}</button>}
           {waState==='connecting'&&<div style={{display:'flex',flexDirection:'column' as const,alignItems:'center',gap:8}}>{waQr&&<img src={waQr.startsWith('data:')?waQr:`data:image/png;base64,${waQr}`} alt="QR Code do WhatsApp" style={{width:140,height:140,borderRadius:10,background:'#fff',padding:6}}/>}{waPairingCode&&<div style={{fontSize:12,color:'rgba(255,255,255,.7)'}}>Código: <strong>{waPairingCode}</strong></div>}</div>}
           {waErro&&<div style={{fontSize:11.5,color:C.danger,marginTop:6}}>{waErro}</div>}
-        </div>)}
+        </div>}
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0',borderBottom:`1px solid ${C.line}`}}>
           <div><div style={{fontSize:13,fontWeight:600,color:'rgba(255,255,255,.5)'}}>Apple Health</div><div style={{fontSize:11,color:'rgba(255,255,255,.35)'}}>Em breve</div></div>
           <span style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.35)',background:'rgba(255,255,255,.06)',padding:'3px 9px',borderRadius:20}}>Em breve</span>
