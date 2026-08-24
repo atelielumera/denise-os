@@ -132,8 +132,10 @@ export default async function handler(req, res) {
     const planoTreinoHoje = planoTreinoDoDia(d, diaSemanaHoje)
     const treinos = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
     const treinoRegistradoHoje = treinos.some((t) => t.data === hojeIso) || d[`dos_treino_registrado_${hojeIso}`]
+    let criarPendenteTreino = false
     if (planoTreinoHoje && !planoTreinoHoje.descanso && !treinoRegistradoHoje && lembraOuCobra('12:00', 21 * 60 + 30)) {
       avisos.push(`🏋️ Treino de hoje (${planoTreinoHoje.nome}) — já fez ou não? Me conta pra eu registrar.`)
+      criarPendenteTreino = true
     }
 
     const leituras = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
@@ -215,6 +217,11 @@ export default async function handler(req, res) {
     if (avisos.length === 0) {
       res.status(200).json({ ok: true, avisos_enviados: 0 })
       return
+    }
+
+    if (criarPendenteTreino && (!d.dos_luna_pendente || (Date.now() - (d.dos_luna_pendente.criadoEm || 0)) >= 30 * 60 * 1000)) {
+      d.dos_luna_pendente = { tipo: 'treino_pergunta', dados: {}, criadoEm: Date.now() }
+      await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
     }
 
     const texto = '🔔 Está na hora de:\n\n' + avisos.join('\n')

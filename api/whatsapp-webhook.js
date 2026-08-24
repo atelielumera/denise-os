@@ -362,6 +362,24 @@ export default async function handler(req, res) {
         res.status(200).json({ ok: true })
         return
       }
+      if (pendente.tipo === 'treino_pergunta' && PALAVRAS_SIM_PENDENTE.some((p) => textoNormalizado.includes(p))) {
+        const treinosAtuais = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
+        d.dos_treinos = [{ data: context.data_hoje, tipo: 'Registrado via WhatsApp', duracaoMin: 0 }, ...treinosAtuais]
+        d[`dos_treino_registrado_${context.data_hoje}`] = true
+        delete d.dos_luna_pendente
+        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await sendWhatsappText(number, '✅ Treino de hoje registrado como feito!')
+        res.status(200).json({ ok: true })
+        return
+      }
+      if (pendente.tipo === 'treino_pergunta' && PALAVRAS_NAO_PENDENTE.some((p) => textoNormalizado.includes(p))) {
+        d[`dos_treino_registrado_${context.data_hoje}`] = true
+        delete d.dos_luna_pendente
+        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await sendWhatsappText(number, 'Ok, registrei que hoje não deu pra treinar. Sem culpa, amanhã tem mais.')
+        res.status(200).json({ ok: true })
+        return
+      }
       if (pendente.tipo === 'evento_cancelar' && PALAVRAS_SIM_PENDENTE.some((p) => textoNormalizado.includes(p))) {
         const agendaAtualEv = Array.isArray(d.dos_agenda) ? d.dos_agenda : []
         const eventoEv = agendaAtualEv.find((e) => e.id === pendente.dados.id)
