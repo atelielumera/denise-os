@@ -72,7 +72,9 @@ export default async function handler(req, res) {
     rotina.forEach((item, i) => {
       if (item.dias && !item.dias.includes(diaSemanaHoje)) return
       if (doneHoje.includes(i)) return
-      if (lembraOuCobra(item.t, 22 * 60)) avisos.push(`⏰ ${item.t} · ${item.n}`)
+      const minItemRotina = paraMinutos(item.t)
+      const corteItemRotina = minItemRotina !== null ? minItemRotina + 120 : 22 * 60
+      if (lembraOuCobra(item.t, corteItemRotina)) avisos.push(`⏰ ${item.t} · ${item.n}`)
     })
 
     Object.keys(medicamentos).forEach((pessoaId) => {
@@ -224,8 +226,9 @@ export default async function handler(req, res) {
       await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
     }
 
-    const texto = '🔔 Está na hora de:\n\n' + avisos.join('\n')
-    await sendWhatsappText(numero, texto)
+    for (const aviso of avisos) {
+      await sendWhatsappText(numero, aviso).catch(() => null)
+    }
     res.status(200).json({ ok: true, avisos_enviados: avisos.length })
   } catch (err) {
     res.status(500).json({ error: err?.message || 'erro desconhecido' })
