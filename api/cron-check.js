@@ -224,9 +224,7 @@ export default async function handler(req, res) {
       await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
     }
 
-    for (const aviso of avisos) {
-      await sendWhatsappText(numero, aviso).catch(() => null)
-    }
+    await Promise.all(avisos.map((aviso) => sendWhatsappText(numero, aviso).catch(() => null)))
     res.status(200).json({ ok: true, avisos_enviados: avisos.length })
   } catch (err) {
     res.status(500).json({ error: err?.message || 'erro desconhecido' })
