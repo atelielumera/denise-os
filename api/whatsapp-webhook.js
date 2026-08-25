@@ -331,6 +331,7 @@ export default async function handler(req, res) {
     if (textoCitadoPelaResposta && userText) {
       userText = `(Denise respondeu usando a funcao "Responder" do WhatsApp a esta mensagem sua: "${textoCitadoPelaResposta.trim()}") ${userText}`
     }
+    const debugSufixoCitacao = contextInfoCitacao ? ('\n\n[DEBUG citacao]: ' + JSON.stringify({ textoCitadoPelaResposta, temContextInfo: !!contextInfoCitacao, temQuotedMessage: !!quotedMsgCitacao }).slice(0, 500)) : ''
 
     if (msg.audioMessage && data.message.base64) {
       try {
@@ -467,7 +468,7 @@ export default async function handler(req, res) {
     if (userText) {
       const mensagemAcao = await processarComando(userText, context.data_hoje, supabase, d)
       if (mensagemAcao) {
-        await sendWhatsappText(number, mensagemAcao)
+        await sendWhatsappText(number, mensagemAcao + debugSufixoCitacao)
         res.status(200).json({ ok: true })
         return
       }
@@ -480,7 +481,7 @@ export default async function handler(req, res) {
     const systemPrompt = lunaSystemPrompt('Você está respondendo agora pelo WhatsApp, com respostas curtas (2 a 5 frases). Responda apenas o que a Denise perguntou ou comentou agora - não puxe lembretes, contas, agenda ou avisos por conta própria. Se ela só cumprimentar ou bater papo, cumprimente de volta e pergunte como pode ajudar, sem listar informações do contexto. Você tem o histórico recente da conversa (WhatsApp e app são a mesma conversa) - use ele pra lembrar do que foi falado antes.') + '\n\nContexto atual (dados reais da Denise, agora):\n' + JSON.stringify(context, null, 2)
 
     const reply = await askLuna(systemPrompt, userContent, historyMsgs)
-    await sendWhatsappText(number, reply)
+    await sendWhatsappText(number, reply + debugSufixoCitacao)
 
     if (supabase) {
       const novoHistorico = [...historico, { me: true, t: userText || '(enviou uma imagem)' }, { me: false, t: reply }].slice(-40)
