@@ -323,8 +323,11 @@ export default async function handler(req, res) {
     const msg = data.message || {}
     let userText = (msg.conversation || msg.extendedTextMessage?.text || '').trim()
 
-    console.error('DIAGNOSTICO mensagem completa:', JSON.stringify({ message: msg, contextInfoNoData: data.contextInfo || null }))
-    const textoCitadoPelaResposta = msg.extendedTextMessage?.contextInfo?.quotedMessage?.conversation || msg.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text || data.contextInfo?.quotedMessage?.conversation || ''
+    const contextInfoCitacao = msg.extendedTextMessage?.contextInfo || msg.contextInfo || data.contextInfo || null
+    const quotedMsgCitacao = contextInfoCitacao?.quotedMessage || null
+    const textoCitadoPelaResposta = quotedMsgCitacao
+      ? (quotedMsgCitacao.conversation || quotedMsgCitacao.extendedTextMessage?.text || quotedMsgCitacao.imageMessage?.caption || quotedMsgCitacao.videoMessage?.caption || '')
+      : ''
     if (textoCitadoPelaResposta && userText) {
       userText = `(Denise respondeu usando a funcao "Responder" do WhatsApp a esta mensagem sua: "${textoCitadoPelaResposta.trim()}") ${userText}`
     }
