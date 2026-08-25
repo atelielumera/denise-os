@@ -17,7 +17,7 @@ function paraMinutos(hhmm) {
   return Number(m[1]) * 60 + Number(m[2])
 }
 
-const JANELA_MIN = 30
+const JANELA_MIN = 15
 
 export default async function handler(req, res) {
   if (!verificarCron(req)) {
@@ -59,12 +59,12 @@ export default async function handler(req, res) {
       return alvo <= agoraMin && alvo > agoraMin - JANELA_MIN
     }
 
-    // Lembrete uma vez no horario, depois cobranca de hora em hora ate o corte (se ainda nao feito).
-    function lembraOuCobra(hhmm, corteMin) {
+    // Lembrete uma vez no horario, depois cobranca a cada `cadenciaMin` (padrao 3h) ate o corte (se ainda nao feito).
+    function lembraOuCobra(hhmm, corteMin, cadenciaMin = 180) {
       const min = paraMinutos(hhmm)
       if (min === null) return false
       if (agoraMin < min || agoraMin >= corteMin) return false
-      return (agoraMin - min) % 60 < JANELA_MIN
+      return (agoraMin - min) % cadenciaMin < JANELA_MIN
     }
 
     const avisos = []
@@ -72,9 +72,7 @@ export default async function handler(req, res) {
     rotina.forEach((item, i) => {
       if (item.dias && !item.dias.includes(diaSemanaHoje)) return
       if (doneHoje.includes(i)) return
-      const minItemRotina = paraMinutos(item.t)
-      const corteItemRotina = minItemRotina !== null ? minItemRotina + 120 : 22 * 60
-      if (lembraOuCobra(item.t, corteItemRotina)) avisos.push(`⏰ ${item.t} · ${item.n}`)
+      if (lembraOuCobra(item.t, 22 * 60)) avisos.push(`⏰ ${item.t} · ${item.n}`)
     })
 
     Object.keys(medicamentos).forEach((pessoaId) => {
