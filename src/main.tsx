@@ -170,7 +170,11 @@ function Shell(){
         try{dados[k]=JSON.parse(v)}catch{dados[k]=v}
       }
       try{
-        const {data:snap}=await supabase.from('app_snapshot').select('data').eq('id','denise').maybeSingle()
+        const {data:snap,error:erroLeituraRemota}=await supabase.from('app_snapshot').select('data').eq('id','denise').maybeSingle()
+        if(erroLeituraRemota){
+          console.error('Sync: falha ao ler snapshot remoto, cancelando esse ciclo pra nao sobrescrever dados com versao desatualizada:',erroLeituraRemota)
+          return
+        }
         const remoto=snap?.data||{}
         const isoHojeSync=isoBR(new Date())
         const chaveHoje=`dos_rotina_done_${isoHojeSync}`
@@ -275,8 +279,10 @@ function Shell(){
           dados.dos_luna_pendente=remoto.dos_luna_pendente
           localStorage.setItem('dos_luna_pendente',JSON.stringify(remoto.dos_luna_pendente))
         }
-      }catch{}
-      supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()}).then(()=>{})
+        await supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()})
+      }catch(erroSync){
+        console.error('Sync: erro inesperado durante a mesclagem, cancelando esse ciclo pra nao sobrescrever dados:',erroSync)
+      }
     }
     sincronizarSnapshot()
     const t=setInterval(sincronizarSnapshot,30*1000)
