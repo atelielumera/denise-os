@@ -124,7 +124,7 @@ export async function transcribeAudio(base64, mediaType) {
   if (!geminiKey) throw new Error('GEMINI_API_KEY nao configurada.')
   const mimeTypeLimpo = (mediaType || 'audio/ogg').split(';')[0].trim()
   const geminiResp = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' + geminiKey,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
