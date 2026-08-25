@@ -1059,7 +1059,7 @@ function Agenda(){
 
   function abrirEdicao(e:any){
     const ev=e.evento
-    if(!ev||ev.origem!=='app')return
+    if(!ev)return
     setEventoEditando(ev)
     setNovo({data:ev.data,hora:ev.hora||'',horaFim:ev.horaFim||'',nome:ev.nome,local:ev.local||'',descricao:ev.descricao||'',categoria:ev.categoria||'pessoal',cor:ev.cor||CATEGORIAS_AGENDA[ev.categoria||'pessoal']?.cor,lembretes:ev.lembretes||[],repete:'nao',diasSemana:[],repeteAte:'',repeteOcorrencias:''})
     setMostrarMais(true)
@@ -1101,7 +1101,7 @@ function Agenda(){
 
   async function pedirExclusao(e:any){
     const ev=e.evento
-    if(!ev||ev.origem!=='app')return
+    if(!ev)return
     if(ev.recorrenciaId){setEscopoPendente({acao:'excluir',id:ev.id});return}
     if(!window.confirm(`Excluir "${ev.nome}"?`))return
     await excluirEventoAgenda(ev.id,'este')
@@ -1121,7 +1121,7 @@ function Agenda(){
 
   function abrirReagendar(e:any){
     const ev=e.evento
-    if(!ev||ev.origem!=='app')return
+    if(!ev)return
     setReagendando({id:ev.id,data:ev.data,hora:ev.hora||'',recorrenciaId:ev.recorrenciaId})
     setDetalheEvento(null)
   }
