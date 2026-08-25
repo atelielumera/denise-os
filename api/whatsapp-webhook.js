@@ -172,7 +172,7 @@ export async function processarComando(userText, hojeIso, supabase, d) {
     if (leituraRegistrada) {
       const leiturasAtuais = Array.isArray(d.dos_leituras) ? d.dos_leituras : []
       const paginasLidas = Number(leituraRegistrada.paginas || 0)
-      const reg = { data: hojeIso, pag: paginasLidas, min: Number(leituraRegistrada.minutos || 0), apren: '' }
+      const reg = { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, data: hojeIso, pag: paginasLidas, min: Number(leituraRegistrada.minutos || 0), apren: '' }
       d.dos_leituras = [reg, ...leiturasAtuais]
       if (livroAtual && livroAtual.totalPaginas > 0) {
         const novaPagina = leituraRegistrada.parou_na_pagina != null ? Math.min(livroAtual.totalPaginas, Number(leituraRegistrada.parou_na_pagina)) : Math.min(livroAtual.totalPaginas, Number(livroAtual.paginaAtual || 0) + paginasLidas)

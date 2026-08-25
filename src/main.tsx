@@ -184,6 +184,27 @@ function Shell(){
           dados[chaveTreinoHoje]=true
           localStorage.setItem(chaveTreinoHoje,'true')
         }
+        const devRemotoHoje=(Array.isArray(remoto.dos_devocionais)?remoto.dos_devocionais:[]).find((e:any)=>e&&e.data===isoHojeSync)
+        if(devRemotoHoje){
+          const devLocalLista=Array.isArray(dados.dos_devocionais)?dados.dos_devocionais:[]
+          if(!devLocalLista.some((e:any)=>e&&e.data===isoHojeSync)){
+            const novaListaDev=[devRemotoHoje,...devLocalLista]
+            dados.dos_devocionais=novaListaDev
+            localStorage.setItem('dos_devocionais',JSON.stringify(novaListaDev))
+          }
+        }
+        const dataCurtaHojeSync=isoHojeSync.slice(8,10)+'/'+isoHojeSync.slice(5,7)
+        ;['dos_saude_extra','dos_saude_extra_flavio'].forEach((chaveSaude)=>{
+          const remotoListaSaude=Array.isArray(remoto[chaveSaude])?remoto[chaveSaude]:[]
+          const remotoHojeSaude=remotoListaSaude.find((r:any)=>r&&r.data===dataCurtaHojeSync)
+          if(!remotoHojeSaude)return
+          const localListaSaude=Array.isArray(dados[chaveSaude])?dados[chaveSaude]:[]
+          if(!localListaSaude.some((r:any)=>r&&r.data===dataCurtaHojeSync)){
+            const novaListaSaude=[remotoHojeSaude,...localListaSaude]
+            dados[chaveSaude]=novaListaSaude
+            localStorage.setItem(chaveSaude,JSON.stringify(novaListaSaude))
+          }
+        })
         const aguaRemotaHoje=(remoto.dos_agua_log||{})[isoHojeSync]
         if(typeof aguaRemotaHoje==='number'){
           const aguaLogLocal=dados.dos_agua_log||{}
@@ -220,6 +241,30 @@ function Shell(){
         }
         mesclarArrayPorId('dos_casa_items')
         mesclarArrayPorId('dos_pedidos_oracao')
+        mesclarArrayPorId('dos_leituras')
+        function mesclarCampoPorId(chave:string,campos:string[]){
+          const remotos=Array.isArray(remoto[chave])?remoto[chave]:[]
+          if(remotos.length===0)return
+          const locais=Array.isArray(dados[chave])?dados[chave]:[]
+          let mudou=false
+          const atualizados=locais.map((it:any)=>{
+            if(!it||!it.id)return it
+            const r=remotos.find((x:any)=>x&&x.id===it.id)
+            if(!r)return it
+            const novo:any={...it}
+            let itemMudou=false
+            campos.forEach(c=>{if(r[c]!==undefined&&r[c]!==it[c]){novo[c]=r[c];itemMudou=true}})
+            if(itemMudou)mudou=true
+            return itemMudou?novo:it
+          })
+          if(mudou){
+            dados[chave]=atualizados
+            localStorage.setItem(chave,JSON.stringify(atualizados))
+          }
+        }
+        mesclarCampoPorId('dos_casa_items',['done'])
+        mesclarCampoPorId('dos_trabalho',['s'])
+        mesclarCampoPorId('dos_pedidos_oracao',['status','dataResposta','testemunho'])
         mesclarArrayPorId('dos_agenda')
         mesclarArrayPorId('dos_treinos')
         mesclarArrayPorId('dos_trabalho')
