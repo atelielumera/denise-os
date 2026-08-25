@@ -278,7 +278,8 @@ export async function processarComando(userText, hojeIso, supabase, d) {
 
     await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
     return partesConfirmacao.join('\n')
-  } catch {
+  } catch (errProcessar) {
+    console.error('Erro ao processar comando estruturado do WhatsApp (caiu no chat livre sem registrar nada):', errProcessar?.message || errProcessar)
     return null
   }
 }
