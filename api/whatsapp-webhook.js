@@ -332,6 +332,8 @@ export default async function handler(req, res) {
       userText = `(Denise respondeu usando a funcao "Responder" do WhatsApp a esta mensagem sua: "${textoCitadoPelaResposta.trim()}") ${userText}`
     }
     const debugSufixoCitacao = contextInfoCitacao ? ('\n\n[DEBUG citacao]: ' + JSON.stringify({ textoCitadoPelaResposta, temContextInfo: !!contextInfoCitacao, temQuotedMessage: !!quotedMsgCitacao }).slice(0, 500)) : ''
+    const debugSufixoCitacao = contextInfoCitacao ? ('\n\n[DEBUG citacao]: ' + JSON.stringify({ textoCitadoPelaResposta, temContextInfo: !!contextInfoCitacao, temQuotedMessage: !!quotedMsgCitacao }).slice(0, 500)) : ''
+    const debugSufixoCitacao = contextInfoCitacao ? ('\n\n[DEBUG citacao]: ' + JSON.stringify({ textoCitadoPelaResposta, temContextInfo: !!contextInfoCitacao, temQuotedMessage: !!quotedMsgCitacao }).slice(0, 500)) : ''
 
     if (msg.audioMessage && data.message.base64) {
       try {
@@ -374,6 +376,9 @@ export default async function handler(req, res) {
     const PALAVRAS_NAO_PENDENTE = ['não', 'nao', 'cancela', 'cancelar', 'errado', 'negativo']
     if (supabase && userText && d.dos_luna_pendente && (Date.now() - (d.dos_luna_pendente.criadoEm || 0)) < 30 * 60 * 1000) {
       const textoNormalizado = userText.trim().toLowerCase()
+      const ehRespostaCurtaPendente = textoNormalizado.split(/\s+/).filter(Boolean).length <= 3
+      const confirmaSimPendente = ehRespostaCurtaPendente && PALAVRAS_SIM_PENDENTE.some((p) => textoNormalizado.includes(p))
+      const confirmaNaoPendente = ehRespostaCurtaPendente && PALAVRAS_NAO_PENDENTE.some((p) => textoNormalizado.includes(p))
       const pendente = d.dos_luna_pendente
       if (pendente.tipo === 'conta_boleto' && PALAVRAS_SIM_PENDENTE.some((p) => textoNormalizado.includes(p))) {
         const casaAtual = Array.isArray(d.dos_casa_items) ? d.dos_casa_items : []
