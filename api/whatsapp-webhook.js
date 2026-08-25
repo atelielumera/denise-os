@@ -317,7 +317,8 @@ export default async function handler(req, res) {
       try {
         const transcript = await transcribeAudio(data.message.base64, msg.audioMessage.mimetype || 'audio/ogg')
         userText = userText ? (userText + '\n\n(audio transcrito): ' + transcript) : transcript
-      } catch {
+      } catch (errAudio) {
+        console.error('Erro ao transcrever audio do WhatsApp:', errAudio?.message || errAudio)
         await sendWhatsappText(number, 'Recebi seu áudio mas não consegui entender agora. Pode tentar de novo ou escrever?')
         res.status(200).json({ ok: true })
         return
