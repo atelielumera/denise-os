@@ -323,6 +323,11 @@ export default async function handler(req, res) {
     const msg = data.message || {}
     let userText = (msg.conversation || msg.extendedTextMessage?.text || '').trim()
 
+    const textoCitadoPelaResposta = msg.extendedTextMessage?.contextInfo?.quotedMessage?.conversation || msg.extendedTextMessage?.contextInfo?.quotedMessage?.extendedTextMessage?.text || ''
+    if (textoCitadoPelaResposta && userText) {
+      userText = `(Denise respondeu usando a funcao "Responder" do WhatsApp a esta mensagem sua: "${textoCitadoPelaResposta.trim()}") ${userText}`
+    }
+
     if (msg.audioMessage && data.message.base64) {
       try {
         const transcript = await transcribeAudio(data.message.base64, msg.audioMessage.mimetype || 'audio/ogg')
