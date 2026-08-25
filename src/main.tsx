@@ -179,6 +179,11 @@ function Shell(){
           dados[chaveHoje]=uniao
           localStorage.setItem(chaveHoje,JSON.stringify(uniao))
         }
+        const chaveTreinoHoje=`dos_treino_registrado_${isoHojeSync}`
+        if(remoto[chaveTreinoHoje]===true&&!dados[chaveTreinoHoje]){
+          dados[chaveTreinoHoje]=true
+          localStorage.setItem(chaveTreinoHoje,'true')
+        }
         const aguaRemotaHoje=(remoto.dos_agua_log||{})[isoHojeSync]
         if(typeof aguaRemotaHoje==='number'){
           const aguaLogLocal=dados.dos_agua_log||{}
@@ -216,6 +221,7 @@ function Shell(){
         mesclarArrayPorId('dos_casa_items')
         mesclarArrayPorId('dos_pedidos_oracao')
         mesclarArrayPorId('dos_agenda')
+        mesclarArrayPorId('dos_treinos')
         mesclarArrayPorId('dos_trabalho')
         if(remoto.dos_luna_pendente===undefined&&dados.dos_luna_pendente){
           delete dados.dos_luna_pendente

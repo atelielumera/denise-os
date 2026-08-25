@@ -186,7 +186,7 @@ export async function processarComando(userText, hojeIso, supabase, d) {
     if (treinoRegistrado) {
       if (treinoRegistrado.feito) {
         const treinosAtuais = Array.isArray(d.dos_treinos) ? d.dos_treinos : []
-        d.dos_treinos = [{ data: hojeIso, tipo: 'Registrado via WhatsApp', duracaoMin: 0 }, ...treinosAtuais]
+        d.dos_treinos = [{ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, data: hojeIso, tipo: 'Registrado via WhatsApp', duracaoMin: 0 }, ...treinosAtuais]
         partesConfirmacao.push('✅ Treino de hoje registrado como feito!')
       } else {
         partesConfirmacao.push('Ok, registrei que hoje não deu pra treinar. Sem culpa, amanhã tem mais.')
