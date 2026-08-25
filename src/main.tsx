@@ -216,6 +216,7 @@ function Shell(){
         mesclarArrayPorId('dos_casa_items')
         mesclarArrayPorId('dos_pedidos_oracao')
         mesclarArrayPorId('dos_agenda')
+        mesclarArrayPorId('dos_trabalho')
         if(remoto.dos_luna_pendente===undefined&&dados.dos_luna_pendente){
           delete dados.dos_luna_pendente
           localStorage.removeItem('dos_luna_pendente')

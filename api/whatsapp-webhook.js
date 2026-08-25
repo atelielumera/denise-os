@@ -85,7 +85,7 @@ export async function processarComando(userText, hojeIso, supabase, d) {
       partesConfirmacao.push('✅ Marquei como feito na Casa: ' + casaPendente.filter((p) => feitosCasa.includes(p.idx)).map((p) => p.nome).join(', '))
     }
     if (novosCasa.length > 0) {
-      const adicionados = novosCasa.map((n) => ({ n: n.nome, cat: CASA_CATS_VALIDAS.includes(n.categoria) ? n.categoria : 'Mercado', done: false }))
+      const adicionados = novosCasa.map((n) => ({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, n: n.nome, cat: CASA_CATS_VALIDAS.includes(n.categoria) ? n.categoria : 'Mercado', done: false }))
       casaAtualizada = [...casaAtualizada, ...adicionados]
       partesConfirmacao.push('🛒 Adicionei na Casa: ' + adicionados.map((a) => a.n).join(', '))
     }
@@ -133,7 +133,7 @@ export async function processarComando(userText, hojeIso, supabase, d) {
 
     if (novosTrabalho.length > 0) {
       const trabalhoAtual = Array.isArray(d.dos_trabalho) ? d.dos_trabalho : trabalhoTarefas
-      const adicionadosTrabalho = novosTrabalho.map((n) => ({ t: n.tarefa, p: TRABALHO_PROJETOS_VALIDOS.includes(n.projeto) ? n.projeto : 'Outros', s: 'pendente' }))
+      const adicionadosTrabalho = novosTrabalho.map((n) => ({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, t: n.tarefa, p: TRABALHO_PROJETOS_VALIDOS.includes(n.projeto) ? n.projeto : 'Outros', s: 'pendente' }))
       d.dos_trabalho = [...trabalhoAtual, ...adicionadosTrabalho]
       partesConfirmacao.push('💼 Adicionei nas tarefas de trabalho: ' + adicionadosTrabalho.map((a) => a.t).join(', '))
     }
