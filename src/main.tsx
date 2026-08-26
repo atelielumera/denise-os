@@ -292,7 +292,8 @@ function Shell(){
           dados.dos_luna_pendente=remoto.dos_luna_pendente
           localStorage.setItem('dos_luna_pendente',JSON.stringify(remoto.dos_luna_pendente))
         }
-        await supabase.rpc('merge_app_snapshot',{p_id:'denise',p_patch:dados})
+        const{error:erroGravarSnapApp}=await supabase.rpc('merge_app_snapshot',{p_id:'denise',p_patch:dados})
+        if(erroGravarSnapApp)console.error('Erro ao gravar no banco via merge_app_snapshot:',erroGravarSnapApp)
       }catch(erroSync){
         console.error('Sync: erro inesperado durante a mesclagem, cancelando esse ciclo pra nao sobrescrever dados:',erroSync)
       }
