@@ -279,7 +279,7 @@ function Shell(){
           dados.dos_luna_pendente=remoto.dos_luna_pendente
           localStorage.setItem('dos_luna_pendente',JSON.stringify(remoto.dos_luna_pendente))
         }
-        await supabase.from('app_snapshot').upsert({id:'denise',data:dados,updated_at:new Date().toISOString()})
+        await supabase.from('app_snapshot').upsert({id:'denise',data:{...remoto,...dados},updated_at:new Date().toISOString()})
       }catch(erroSync){
         console.error('Sync: erro inesperado durante a mesclagem, cancelando esse ciclo pra nao sobrescrever dados:',erroSync)
       }
