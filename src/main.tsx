@@ -272,6 +272,19 @@ function Shell(){
         mesclarArrayPorId('dos_agenda')
         mesclarArrayPorId('dos_treinos')
         mesclarArrayPorId('dos_trabalho')
+        function mesclarRotina(){
+          const remotos=Array.isArray(remoto.dos_rotina)?remoto.dos_rotina:[]
+          if(remotos.length===0)return
+          const locais=Array.isArray(dados.dos_rotina)?dados.dos_rotina:[]
+          const chaveItem=(it:any)=>`${it?.n}|${it?.t}|${JSON.stringify(it?.dias||[])}`
+          const chavesLocais=new Set(locais.map(chaveItem))
+          const novosDoRemoto=remotos.filter((it:any)=>it&&!chavesLocais.has(chaveItem(it)))
+          if(novosDoRemoto.length===0)return
+          const unidos=[...locais,...novosDoRemoto]
+          dados.dos_rotina=unidos
+          localStorage.setItem('dos_rotina',JSON.stringify(unidos))
+        }
+        mesclarRotina()
         if(remoto.dos_luna_pendente===undefined&&dados.dos_luna_pendente){
           delete dados.dos_luna_pendente
           localStorage.removeItem('dos_luna_pendente')
@@ -279,7 +292,7 @@ function Shell(){
           dados.dos_luna_pendente=remoto.dos_luna_pendente
           localStorage.setItem('dos_luna_pendente',JSON.stringify(remoto.dos_luna_pendente))
         }
-        await supabase.from('app_snapshot').upsert({id:'denise',data:{...remoto,...dados},updated_at:new Date().toISOString()})
+        await supabase.rpc('merge_app_snapshot',{p_id:'denise',p_patch:dados})
       }catch(erroSync){
         console.error('Sync: erro inesperado durante a mesclagem, cancelando esse ciclo pra nao sobrescrever dados:',erroSync)
       }

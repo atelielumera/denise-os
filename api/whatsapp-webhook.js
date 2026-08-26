@@ -276,7 +276,7 @@ export async function processarComando(userText, hojeIso, supabase, d) {
       }
     }
 
-    await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+    await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
     return partesConfirmacao.join('\n')
   } catch (errProcessar) {
     console.error('Erro ao processar comando estruturado do WhatsApp (caiu no chat livre sem registrar nada):', errProcessar?.message || errProcessar)
@@ -385,14 +385,14 @@ export default async function handler(req, res) {
         const novaConta = { id: `${Date.now()}_boleto`, n: pendente.dados.nome, cat: 'Contas', done: false, valor: pendente.dados.valor || undefined, venc: pendente.dados.vencimento || undefined, criadaEm: new Date().toISOString() }
         d.dos_casa_items = [novaConta, ...casaAtual]
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, `✅ Conta registrada: ${novaConta.n}${novaConta.valor ? ` (R$ ${Number(novaConta.valor).toFixed(2)})` : ''}${novaConta.venc ? `, vence ${novaConta.venc}` : ''}.`)
         res.status(200).json({ ok: true })
         return
       }
       if (pendente.tipo === 'conta_boleto' && PALAVRAS_NAO_PENDENTE.some((p) => textoNormalizado.includes(p))) {
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, 'Combinado, não criei a conta.')
         res.status(200).json({ ok: true })
         return
@@ -402,7 +402,7 @@ export default async function handler(req, res) {
         d.dos_treinos = [{ data: context.data_hoje, tipo: 'Registrado via WhatsApp', duracaoMin: 0 }, ...treinosAtuais]
         d[`dos_treino_registrado_${context.data_hoje}`] = true
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, '✅ Treino de hoje registrado como feito!')
         res.status(200).json({ ok: true })
         return
@@ -410,7 +410,7 @@ export default async function handler(req, res) {
       if (pendente.tipo === 'treino_pergunta' && PALAVRAS_NAO_PENDENTE.some((p) => textoNormalizado.includes(p))) {
         d[`dos_treino_registrado_${context.data_hoje}`] = true
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, 'Ok, registrei que hoje não deu pra treinar. Sem culpa, amanhã tem mais.')
         res.status(200).json({ ok: true })
         return
@@ -421,7 +421,7 @@ export default async function handler(req, res) {
         if (eventoEv?.googleEventId) await deleteGoogleCalendarEvento(supabase, eventoEv.googleEventId).catch(() => null)
         d.dos_agenda = agendaAtualEv.filter((e) => e.id !== pendente.dados.id)
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, `✅ Cancelado: ${eventoEv?.nome || 'o evento'}.`)
         res.status(200).json({ ok: true })
         return
@@ -440,14 +440,14 @@ export default async function handler(req, res) {
           d.dos_agenda = agendaAtualEv.map((e) => (e.id === pendente.dados.id ? atualizado : e))
         }
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, `✅ Alterado: ${eventoEv?.nome || 'o evento'}${pendente.dados.novaData ? ' — nova data ' + pendente.dados.novaData : ''}${pendente.dados.novaHora ? ' às ' + pendente.dados.novaHora : ''}.`)
         res.status(200).json({ ok: true })
         return
       }
       if ((pendente.tipo === 'evento_cancelar' || pendente.tipo === 'evento_editar') && PALAVRAS_NAO_PENDENTE.some((p) => textoNormalizado.includes(p))) {
         delete d.dos_luna_pendente
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         await sendWhatsappText(number, 'Combinado, não mudei nada no evento.')
         res.status(200).json({ ok: true })
         return
@@ -460,7 +460,7 @@ export default async function handler(req, res) {
       try { deteccaoBoleto = await detectarBoleto(data.message.base64, msg.imageMessage.mimetype || 'image/jpeg') } catch { /* segue como imagem normal */ }
       if (deteccaoBoleto.eh_boleto && deteccaoBoleto.nome) {
         d.dos_luna_pendente = { tipo: 'conta_boleto', dados: { nome: deteccaoBoleto.nome, valor: deteccaoBoleto.valor || null, vencimento: deteccaoBoleto.vencimento || null }, criadoEm: Date.now() }
-        await supabase.from('app_snapshot').upsert({ id: 'denise', data: d, updated_at: new Date().toISOString() })
+        await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: d })
         const partesBoleto = [`Parece um boleto: ${deteccaoBoleto.nome}`]
         if (deteccaoBoleto.valor) partesBoleto.push(`R$ ${Number(deteccaoBoleto.valor).toFixed(2)}`)
         if (deteccaoBoleto.vencimento) partesBoleto.push(`vencimento ${deteccaoBoleto.vencimento}`)
@@ -490,7 +490,7 @@ export default async function handler(req, res) {
 
     if (supabase) {
       const novoHistorico = [...historico, { me: true, t: userText || '(enviou uma imagem)' }, { me: false, t: reply }].slice(-40)
-      await supabase.from('app_snapshot').upsert({ id: 'denise', data: { ...d, dos_luna_chat: novoHistorico }, updated_at: new Date().toISOString() })
+      await supabase.rpc('merge_app_snapshot', { p_id: 'denise', p_patch: { ...d, dos_luna_chat: novoHistorico } })
     }
 
     res.status(200).json({ ok: true })
